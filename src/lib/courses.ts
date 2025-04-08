@@ -1,17 +1,22 @@
-import { supabase } from './supabase';
+import { createServerSupabaseClient } from './supabase';
 import type { Course, CourseFormatEntry, CourseCredit, CourseState, CourseWithRelations, Database } from '../types/database';
 
 export async function getCourses(): Promise<Course[]> {
+  const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from('courses')
     .select('*')
     .order('title');
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching courses:', error);
+    throw error;
+  }
   return data;
 }
 
 export async function getCourseWithRelations(id: string): Promise<CourseWithRelations | null> {
+  const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from('courses')
     .select(`
@@ -27,66 +32,98 @@ export async function getCourseWithRelations(id: string): Promise<CourseWithRela
     .eq('id', id)
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching course with relations:', error);
+    throw error;
+  }
   return data;
 }
 
 export async function createCourse(
-  course: Database['public']['Tables']['courses']['Insert'],
+  course: Omit<Database['public']['Tables']['courses']['Insert'], 'id'>,
   formats: Omit<CourseFormatEntry, 'id' | 'course_id' | 'created_at'>[],
   credits: Omit<CourseCredit, 'id' | 'course_id' | 'created_at'>[],
   states: Omit<CourseState, 'id' | 'course_id' | 'created_at'>[]
 ): Promise<CourseWithRelations> {
-  // Start a Supabase transaction
-  const { data: courseData, error: courseError } = await supabase
-    .from('courses')
-    .insert(course)
-    .select()
-    .single();
+  const supabase = await createServerSupabaseClient();
+  
+  try {
+    console.log("Starting course creation process with:", { course, formats, credits, states });
+    
+    // Start a Supabase transaction
+    const { data: courseData, error: courseError } = await supabase
+      .from('courses')
+      .insert(course)
+      .select()
+      .single();
 
-  if (courseError) throw courseError;
+    if (courseError) {
+      console.error('Error inserting course:', courseError);
+      throw courseError;
+    }
 
-  // Add formats
-  if (formats.length > 0) {
-    const { error: formatsError } = await supabase
-      .from('course_formats')
-      .insert(
-        formats.map(format => ({
-          ...format,
-          course_id: courseData.id
-        }))
-      );
-    if (formatsError) throw formatsError;
+    console.log("Course created successfully:", courseData);
+
+    // Add formats
+    if (formats.length > 0) {
+      console.log("Adding formats:", formats);
+      const formatsWithCourseId = formats.map(format => ({
+        ...format,
+        course_id: courseData.id
+      }));
+      
+      const { error: formatsError } = await supabase
+        .from('course_formats')
+        .insert(formatsWithCourseId);
+        
+      if (formatsError) {
+        console.error('Error inserting course formats:', formatsError);
+        throw formatsError;
+      }
+    }
+
+    // Add credits
+    if (credits.length > 0) {
+      console.log("Adding credits:", credits);
+      const creditsWithCourseId = credits.map(credit => ({
+        ...credit,
+        course_id: courseData.id
+      }));
+      
+      const { error: creditsError } = await supabase
+        .from('course_credits')
+        .insert(creditsWithCourseId);
+        
+      if (creditsError) {
+        console.error('Error inserting course credits:', creditsError);
+        throw creditsError;
+      }
+    }
+
+    // Add states
+    if (states.length > 0) {
+      console.log("Adding states:", states);
+      const statesWithCourseId = states.map(state => ({
+        state_code: state.state,
+        course_id: courseData.id
+      }));
+      
+      const { error: statesError } = await supabase
+        .from('course_states')
+        .insert(statesWithCourseId);
+        
+      if (statesError) {
+        console.error('Error inserting course states:', statesError);
+        throw statesError;
+      }
+    }
+
+    // Return the complete course with relations
+    return await getCourseWithRelations(courseData.id) as CourseWithRelations;
+  } catch (error) {
+    console.error('Error in createCourse:', error);
+    throw error;
   }
-
-  // Add credits
-  if (credits.length > 0) {
-    const { error: creditsError } = await supabase
-      .from('course_credits')
-      .insert(
-        credits.map(credit => ({
-          ...credit,
-          course_id: courseData.id
-        }))
-      );
-    if (creditsError) throw creditsError;
-  }
-
-  // Add states
-  if (states.length > 0) {
-    const { error: statesError } = await supabase
-      .from('course_states')
-      .insert(
-        states.map(state => ({
-          ...state,
-          course_id: courseData.id
-        }))
-      );
-    if (statesError) throw statesError;
-  }
-
-  // Return the complete course with relations
-  return await getCourseWithRelations(courseData.id) as CourseWithRelations;
 }
 
 export async function updateCourse(
@@ -96,6 +133,8 @@ export async function updateCourse(
   credits?: Omit<CourseCredit, 'id' | 'course_id' | 'created_at'>[],
   states?: Omit<CourseState, 'id' | 'course_id' | 'created_at'>[]
 ): Promise<CourseWithRelations> {
+  const supabase = await createServerSupabaseClient();
+  
   // Update course
   const { error: courseError } = await supabase
     .from('courses')
@@ -149,7 +188,7 @@ export async function updateCourse(
         .from('course_states')
         .insert(
           states.map(state => ({
-            ...state,
+            state_code: state.state,
             course_id: id
           }))
         );
@@ -162,6 +201,7 @@ export async function updateCourse(
 }
 
 export async function deleteCourse(id: string): Promise<void> {
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from('courses')
     .delete()
@@ -171,6 +211,7 @@ export async function deleteCourse(id: string): Promise<void> {
 }
 
 export async function getSubjectAreas() {
+  const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from('subject_areas')
     .select('*')

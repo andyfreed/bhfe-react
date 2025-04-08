@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { Course, CourseFormatEntry, CourseCredit, CourseState } from '@/types/database';
+import { Course, CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 
-const initialCourseState: Omit<Course, 'id' | 'created_at'> = {
+const initialCourseState: Omit<Course, 'id' | 'created_at'> & {
+  formats: CourseFormatEntry[];
+  credits: CourseCredit[];
+  states: CourseState[];
+} = {
   sku: '',
   title: '',
   description: '',
@@ -17,20 +21,35 @@ const initialCourseState: Omit<Course, 'id' | 'created_at'> = {
   states: []
 };
 
-export default function CourseForm({ params }: { params: { action: string } }) {
+// Valid course formats from the enum
+const VALID_FORMATS: CourseFormat[] = ['online', 'hardcopy', 'video'];
+
+// Valid credit types
+const VALID_CREDIT_TYPES = ['CPA', 'CFP', 'CDFA', 'EA', 'OTRP', 'ERPA'];
+
+type PageParams = {
+  params: Promise<{ action: string }>;
+};
+
+export default function CourseForm({ params }: PageParams) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [course, setCourse] = useState<Omit<Course, 'id' | 'created_at'>>(initialCourseState);
+  const [course, setCourse] = useState<Omit<Course, 'id' | 'created_at'> & {
+    formats: CourseFormatEntry[];
+    credits: CourseCredit[];
+    states: CourseState[];
+  }>(initialCourseState);
+  const { action } = use(params);
 
   useEffect(() => {
-    if (params.action === 'edit') {
+    if (action === 'edit') {
       const courseId = new URLSearchParams(window.location.search).get('id');
       if (courseId) {
         fetchCourse(courseId);
       }
     }
-  }, [params.action]);
+  }, [action]);
 
   const fetchCourse = async (id: string) => {
     try {
@@ -54,7 +73,7 @@ export default function CourseForm({ params }: { params: { action: string } }) {
       setError(null);
       
       const response = await fetch('/api/courses', {
-        method: params.action === 'edit' ? 'PUT' : 'POST',
+        method: action === 'edit' ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(course)
       });
@@ -238,13 +257,18 @@ export default function CourseForm({ params }: { params: { action: string } }) {
         <label className="block text-sm font-medium text-gray-700">Formats</label>
         {course.formats.map((format, index) => (
           <div key={index} className="flex gap-4 mt-2">
-            <input
-              type="text"
+            <select
               value={format.format}
               onChange={(e) => updateFormat(index, 'format', e.target.value)}
-              placeholder="Format"
               className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+            >
+              <option value="">Select Format</option>
+              {VALID_FORMATS.map(formatOption => (
+                <option key={formatOption} value={formatOption}>
+                  {formatOption.charAt(0).toUpperCase() + formatOption.slice(1)}
+                </option>
+              ))}
+            </select>
             <input
               type="number"
               value={format.price}
@@ -274,13 +298,18 @@ export default function CourseForm({ params }: { params: { action: string } }) {
         <label className="block text-sm font-medium text-gray-700">Credits</label>
         {course.credits.map((credit, index) => (
           <div key={index} className="flex gap-4 mt-2">
-            <input
-              type="text"
+            <select
               value={credit.credit_type}
               onChange={(e) => updateCredit(index, 'credit_type', e.target.value)}
-              placeholder="Credit Type"
               className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+            >
+              <option value="">Select Credit Type</option>
+              {VALID_CREDIT_TYPES.map(creditType => (
+                <option key={creditType} value={creditType}>
+                  {creditType}
+                </option>
+              ))}
+            </select>
             <input
               type="number"
               value={credit.amount}
@@ -348,7 +377,7 @@ export default function CourseForm({ params }: { params: { action: string } }) {
           disabled={loading}
           className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
-          {loading ? 'Saving...' : params.action === 'edit' ? 'Update Course' : 'Create Course'}
+          {loading ? 'Saving...' : action === 'edit' ? 'Update Course' : 'Create Course'}
         </button>
       </div>
     </form>

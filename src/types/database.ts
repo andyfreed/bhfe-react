@@ -11,23 +11,29 @@ export interface Course {
   table_of_contents_url: string;
   course_content_url: string;
   created_at: string;
-  formats: CourseFormatEntry[];
-  credits: CourseCredit[];
-  states: CourseState[];
 }
 
 export interface CourseFormatEntry {
+  id?: string;
+  course_id?: string;
   format: string;
   price: number;
+  created_at?: string;
 }
 
 export interface CourseCredit {
+  id?: string;
+  course_id?: string;
   credit_type: string;
   amount: number;
+  created_at?: string;
 }
 
 export interface CourseState {
+  id?: string;
+  course_id?: string;
   state: string;
+  created_at?: string;
 }
 
 export interface SubjectArea {
@@ -46,10 +52,13 @@ export interface CourseSubjectArea {
 
 // Types with relationships included
 export interface CourseWithRelations extends Course {
-  formats?: CourseFormatEntry[];
-  credits?: CourseCredit[];
-  states?: CourseState[];
-  subject_areas?: SubjectArea[];
+  formats: CourseFormatEntry[];
+  credits: CourseCredit[];
+  states: CourseState[];
+  subject_areas?: {
+    id: string;
+    subject_areas: SubjectArea;
+  }[];
 }
 
 export interface Database {
