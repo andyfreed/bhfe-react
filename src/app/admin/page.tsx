@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function AdminDashboard() {
   return (
     <div className="space-y-6">
@@ -79,12 +81,18 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-5 md:mt-0 md:col-span-2">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+              <Link 
+                href="/admin/courses/new"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
                 Add New Course
-              </button>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-                View All Users
-              </button>
+              </Link>
+              <Link 
+                href="/admin/courses"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Manage Courses
+              </Link>
             </div>
           </div>
         </div>
