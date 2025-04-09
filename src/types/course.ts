@@ -23,6 +23,26 @@ export interface CourseSubjectArea {
 
 export interface Course {
   id: string;
+  title: string;
+  description: string;
+  type: CourseType[];
+  price: number;
+  duration: string;
+  credits: number;
+  features: string[];
+  slug: string;
+  objectives: string[];
+  instructor: {
+    name: string;
+    bio: string;
+    image: string;
+  };
+  image?: string;
+}
+
+// Full database course model (for future use)
+export interface DatabaseCourse {
+  id: string;
   sku: string;
   title: string;
   description: string;

@@ -12,7 +12,7 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div className="mt-5 md:mt-0 md:col-span-2">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               <div className="bg-white overflow-hidden shadow rounded-lg">
                 <div className="p-5">
                   <div className="flex items-center">
@@ -43,6 +43,28 @@ export default function AdminDashboard() {
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">Total Courses</dt>
                         <dd className="text-lg font-medium text-gray-900">0</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">New Inquiries</dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          <Link href="/admin/inquiries?status=new" className="text-blue-600 hover:text-blue-800">
+                            0
+                          </Link>
+                        </dd>
                       </dl>
                     </div>
                   </div>
@@ -92,6 +114,18 @@ export default function AdminDashboard() {
                 className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
                 Manage Courses
+              </Link>
+              <Link 
+                href="/admin/inquiries"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Manage Contact Inquiries
+              </Link>
+              <Link 
+                href="/admin/import"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Import Data
               </Link>
             </div>
           </div>

@@ -36,6 +36,8 @@ export default function AdminNav() {
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <NavLink href="/admin">Dashboard</NavLink>
               <NavLink href="/admin/courses">Courses</NavLink>
+              <NavLink href="/admin/inquiries">Contact Inquiries</NavLink>
+              <NavLink href="/admin/import">Import</NavLink>
             </div>
           </div>
           <div className="flex items-center space-x-4">

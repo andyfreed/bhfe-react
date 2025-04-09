@@ -85,11 +85,11 @@ export default function CoursesPage() {
                     {course.author}
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                    {new Date(course.last_updated).toLocaleDateString()}
+                    {new Date(course.created_at).toLocaleDateString()}
                   </td>
                   <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                     <Link
-                      href={`/admin/courses/${course.id}`}
+                      href={`/admin/courses/edit/${course.id}`}
                       className="text-blue-600 hover:text-blue-900 mr-4"
                     >
                       Edit

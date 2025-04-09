@@ -1,6 +1,49 @@
 export type CourseFormat = 'online' | 'hardcopy' | 'video';
 export type CreditType = 'CPA' | 'CFP' | 'CDFA' | 'EA' | 'OTRP' | 'ERPA';
 
+// Exam related types
+export interface ExamQuestion {
+  id: string;
+  exam_id: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_option: 'a' | 'b' | 'c' | 'd';
+  created_at: string;
+}
+
+export interface Exam {
+  id: string;
+  course_id: string;
+  title: string;
+  description: string;
+  passing_score: number; // Percentage needed to pass (e.g., 70 means 70%)
+  created_at: string;
+}
+
+export interface UserExamAttempt {
+  id: string;
+  user_id: string;
+  exam_id: string;
+  score: number | null;
+  completed: boolean;
+  started_at: string;
+  completed_at: string | null;
+  passed: boolean | null;
+  created_at: string;
+}
+
+export interface UserExamAnswer {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  selected_option: 'a' | 'b' | 'c' | 'd' | null;
+  is_correct: boolean | null;
+  created_at: string;
+}
+
 export interface Course {
   id: string;
   sku: string;
@@ -10,6 +53,7 @@ export interface Course {
   author: string;
   table_of_contents_url: string;
   course_content_url: string;
+  certificates?: string;
   created_at: string;
 }
 
@@ -26,13 +70,14 @@ export interface CourseCredit {
   course_id?: string;
   credit_type: string;
   amount: number;
+  course_number?: string;
   created_at?: string;
 }
 
 export interface CourseState {
   id?: string;
   course_id?: string;
-  state: string;
+  state_code: string;
   created_at?: string;
 }
 
@@ -59,6 +104,7 @@ export interface CourseWithRelations extends Course {
     id: string;
     subject_areas: SubjectArea;
   }[];
+  exams?: Exam[];
 }
 
 export interface Database {
@@ -93,6 +139,26 @@ export interface Database {
         Row: CourseSubjectArea;
         Insert: Omit<CourseSubjectArea, 'id' | 'created_at'>;
         Update: Partial<Omit<CourseSubjectArea, 'id' | 'created_at'>>;
+      };
+      exams: {
+        Row: Exam;
+        Insert: Omit<Exam, 'id' | 'created_at'>;
+        Update: Partial<Omit<Exam, 'id' | 'created_at'>>;
+      };
+      exam_questions: {
+        Row: ExamQuestion;
+        Insert: Omit<ExamQuestion, 'id' | 'created_at'>;
+        Update: Partial<Omit<ExamQuestion, 'id' | 'created_at'>>;
+      };
+      user_exam_attempts: {
+        Row: UserExamAttempt;
+        Insert: Omit<UserExamAttempt, 'id' | 'created_at'>;
+        Update: Partial<Omit<UserExamAttempt, 'id' | 'created_at'>>;
+      };
+      user_exam_answers: {
+        Row: UserExamAnswer;
+        Insert: Omit<UserExamAnswer, 'id' | 'created_at'>;
+        Update: Partial<Omit<UserExamAnswer, 'id' | 'created_at'>>;
       };
     };
   };
