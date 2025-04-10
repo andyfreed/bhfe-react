@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createCourse, updateCourse, getCourses, deleteCourse } from '@/lib/courses';
+import { createCourse, updateCourse, getCourses, deleteCourse, deleteAllCourses } from '@/lib/courses';
 import type { Course, CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 import { cookies } from 'next/headers';
 
@@ -128,12 +128,25 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await verifyAuth();
+    
+    // Check if this is a bulk delete request by checking if there's no specific ID
     const url = new URL(request.url);
-    const id = url.pathname.split('/').pop();
-    if (!id) throw new Error('No course ID provided');
-
-    await deleteCourse(id);
-    return NextResponse.json({ success: true });
+    const segments = url.pathname.split('/').filter(Boolean);
+    
+    // If we only have 'api' and 'courses' in the path, it's a bulk delete
+    if (segments.length === 2 && segments[1] === 'courses') {
+      await deleteAllCourses();
+      return NextResponse.json({ success: true, message: 'All courses deleted successfully' });
+    }
+    
+    // If we have a specific ID, delete that course
+    const courseId = segments[segments.length - 1];
+    if (!courseId) {
+      return NextResponse.json({ error: 'No course ID provided' }, { status: 400 });
+    }
+    
+    await deleteCourse(courseId);
+    return NextResponse.json({ success: true, message: 'Course deleted successfully' });
   } catch (error: any) {
     console.error('Error deleting course:', error);
     return NextResponse.json(

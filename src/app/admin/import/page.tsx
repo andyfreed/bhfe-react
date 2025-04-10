@@ -1,19 +1,32 @@
 'use client';
 
-import CourseImporter from '@/components/admin/CourseImporter';
+import ImportComponent from '@/components/admin/ImportComponent';
 
 export default function ImportPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Import Data</h1>
-        <p className="mt-2 text-sm text-gray-700">
-          Import data into the system from CSV files.
-        </p>
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900">Import Data</h1>
+      <p className="text-gray-600">Import data into the system from XLSX files.</p>
       
-      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-lg p-6">
-        <CourseImporter />
+      <div className="border rounded-lg p-6 bg-white">
+        <h2 className="text-xl font-semibold mb-2">Import Courses from XLSX</h2>
+        <p className="mb-4">
+          Upload an Excel file to import multiple courses at once. Make sure your XLSX has the required headers: 
+          title, sku, description, main_subject, author, etc. <strong>Important: Use 2-letter state codes</strong> (e.g., "CA", "NY") 
+          for States and separate multiple states with a pipe (|) character.
+          <a 
+            href="/api/admin/import/courses/sample" 
+            className="text-blue-600 hover:text-blue-800 ml-2"
+          >
+            Download sample template
+          </a>
+        </p>
+        
+        <ImportComponent
+          endpoint="/api/admin/import/courses"
+          acceptedFileTypes=".xlsx"
+          buttonText="Import Courses"
+        />
       </div>
     </div>
   );

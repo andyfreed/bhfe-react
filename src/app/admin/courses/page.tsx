@@ -34,7 +34,25 @@ export default function CoursesPage() {
             Manage your course catalog here. Add, edit, or remove courses.
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 space-x-4">
+          <button
+            onClick={async () => {
+              if (!confirm('Are you sure you want to delete ALL courses? This action cannot be undone!')) return;
+              try {
+                const response = await fetch('/api/courses', {
+                  method: 'DELETE',
+                });
+                if (!response.ok) throw new Error('Failed to delete all courses');
+                setCourses([]);
+              } catch (error) {
+                console.error('Error deleting all courses:', error);
+                alert('Failed to delete all courses. Please try again.');
+              }
+            }}
+            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Delete All Courses
+          </button>
           <Link
             href="/admin/courses/new"
             className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -63,31 +81,31 @@ export default function CoursesPage() {
           <table className="min-w-full divide-y divide-gray-300">
             <thead>
               <tr>
-                <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">SKU</th>
+                <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 w-32">SKU</th>
                 <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Title</th>
-                <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Author</th>
-                <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Last Updated</th>
-                <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-40">Author</th>
+                <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-32">Last Updated</th>
+                <th className="relative py-3.5 pl-3 pr-4 sm:pr-6 w-24">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {courses.map((course) => (
                 <tr key={course.id} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900">
+                  <td className="py-4 pl-4 pr-3 text-sm text-gray-900 font-medium">
                     {course.sku}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                  <td className="px-3 py-4 text-sm text-gray-900">
                     {course.title}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                  <td className="px-3 py-4 text-sm text-gray-500">
                     {course.author}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                  <td className="px-3 py-4 text-sm text-gray-500">
                     {new Date(course.created_at).toLocaleDateString()}
                   </td>
-                  <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                  <td className="relative py-4 pl-3 pr-4 text-right text-sm font-medium">
                     <Link
                       href={`/admin/courses/edit/${course.id}`}
                       className="text-blue-600 hover:text-blue-900 mr-4"

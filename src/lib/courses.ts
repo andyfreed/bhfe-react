@@ -228,6 +228,45 @@ export async function deleteCourse(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function deleteAllCourses(): Promise<void> {
+  const supabase = await createServerSupabaseClient();
+  
+  try {
+    // Delete all related records first using a more direct approach
+    const { error: formatsError } = await supabase
+      .from('course_formats')
+      .delete()
+      .gte('course_id', '00000000-0000-0000-0000-000000000000');
+    if (formatsError) throw formatsError;
+
+    const { error: creditsError } = await supabase
+      .from('course_credits')
+      .delete()
+      .gte('course_id', '00000000-0000-0000-0000-000000000000');
+    if (creditsError) throw creditsError;
+
+    const { error: statesError } = await supabase
+      .from('course_states')
+      .delete()
+      .gte('course_id', '00000000-0000-0000-0000-000000000000');
+    if (statesError) throw statesError;
+
+    // Delete all courses using a more direct approach
+    const { error: coursesError } = await supabase
+      .from('courses')
+      .delete()
+      .gte('id', '00000000-0000-0000-0000-000000000000');
+    
+    if (coursesError) {
+      console.error('Error deleting all courses:', coursesError);
+      throw coursesError;
+    }
+  } catch (error) {
+    console.error('Error in deleteAllCourses:', error);
+    throw error;
+  }
+}
+
 export async function getSubjectAreas() {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
