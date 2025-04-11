@@ -7,6 +7,8 @@ import { createServerSupabaseClient } from '@/lib/supabase';
 import type { CourseWithRelations, Exam } from '@/types/database';
 import { CourseType } from '@/types/course';
 import { getCourseExams } from '@/lib/exams';
+import BackgroundEffect from '@/components/ui/BackgroundEffect';
+import { sanitizeText } from '@/utils/text';
 
 interface Props {
   params: {
@@ -56,8 +58,8 @@ function adaptCourse(course: CourseWithRelations): EnhancedCourse {
   
   return {
     id: course.id,
-    title: course.title,
-    description: course.description,
+    title: sanitizeText(course.title),
+    description: sanitizeText(course.description),
     type: type,
     price: price,
     duration: `${totalCredits} hours`, // Assuming 1 credit = 1 hour
@@ -77,7 +79,7 @@ function adaptCourse(course: CourseWithRelations): EnhancedCourse {
       'Stay current with industry standards'
     ],
     instructor: {
-      name: course.author,
+      name: sanitizeText(course.author),
       bio: 'Experienced instructor with many years of industry expertise.',
       image: '' // No image available
     }
@@ -109,10 +111,22 @@ async function getCourseBySlug(slug: string): Promise<EnhancedCourse | null> {
       return null;
     }
     
+    // Clean the search slug
+    const cleanSlug = slug.toLowerCase().trim();
+    
     // Convert to slug format and find matching course
-    const matchingCourse = data.find(course => 
-      course.sku.toLowerCase().replace(/\s+/g, '-') === slug
-    );
+    const matchingCourse = data.find(course => {
+      // Try multiple matching techniques
+      const courseSlug = course.sku.toLowerCase().replace(/\s+/g, '-');
+      const simplifiedCourseSlug = courseSlug.replace(/[^a-z0-9-]/g, '');
+      const simplifiedSearchSlug = cleanSlug.replace(/[^a-z0-9-]/g, '');
+      
+      return (
+        courseSlug === cleanSlug ||
+        simplifiedCourseSlug === simplifiedSearchSlug ||
+        course.id === cleanSlug
+      );
+    });
     
     if (!matchingCourse) {
       return null;
@@ -131,11 +145,13 @@ function getDummyCourse(slug: string): EnhancedCourse | undefined {
 }
 
 export default async function CoursePage({ params }: Props) {
+  const { slug } = params;
+  
   // First try to get the real course
-  const course = await getCourseBySlug(params.slug);
+  const course = await getCourseBySlug(slug);
   
   // If not found, try dummy data
-  const fallbackCourse = !course ? getDummyCourse(params.slug) : null;
+  const fallbackCourse = !course ? getDummyCourse(slug) : null;
   
   // If neither found, 404
   if (!course && !fallbackCourse) {
@@ -157,145 +173,240 @@ export default async function CoursePage({ params }: Props) {
   }
 
   return (
-    <div className="py-12 bg-white">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Course Content */}
-          <div className="lg:col-span-2">
-            <div className="flex gap-2 mb-4">
-              {courseData.type.map((type) => (
-                <span
-                  key={type}
-                  className="px-3 py-1 text-sm font-semibold rounded-full bg-theme-primary-light/10 text-theme-primary-light"
-                >
-                  {type}
-                </span>
-              ))}
+    <div className="relative min-h-screen">
+      {/* Background effect */}
+      <BackgroundEffect intensity="light" color="primary" />
+      
+      <div className="py-12 relative z-10">
+        <div className="container mx-auto px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <Link href="/courses" className="inline-flex items-center text-theme-primary-DEFAULT hover:text-theme-primary-dark transition-colors mb-4">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Courses
+              </Link>
+              
+              <div className="flex flex-wrap gap-2 mb-4 animate-fadeIn">
+                {courseData.type.map((type) => (
+                  <span
+                    key={type}
+                    className="px-3 py-1 text-sm font-semibold rounded-full glass-effect text-white backdrop-blur-sm"
+                  >
+                    {type}
+                  </span>
+                ))}
+              </div>
+              
+              <h1 className="text-5xl font-bold mb-6 primary-gradient-text animate-fadeInUp">
+                {courseData.title}
+              </h1>
             </div>
             
-            <h1 className="text-4xl font-bold mb-6 text-theme-neutral-800">{courseData.title}</h1>
-            
-            {/* Course Image/Banner */}
-            <div className="relative h-[400px] mb-8 rounded-lg overflow-hidden border border-theme-neutral-200 bg-gradient-to-r from-theme-primary-light to-theme-primary-DEFAULT flex items-center justify-center text-white">
-              {/* Check if image property exists and has a value */}
-              {courseData.image ? (
-                <Image
-                  src={courseData.image}
-                  alt={courseData.title}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                />
-              ) : (
-                <div className="text-center p-8">
-                  <h3 className="text-2xl font-bold mb-2">{courseData.title}</h3>
-                  <p className="text-white/80">{courseData.credits} Credits • {courseData.duration}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+              {/* Course Content */}
+              <div className="lg:col-span-2 animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                {/* Course Image/Banner */}
+                <div className="relative h-[400px] mb-8 rounded-xl overflow-hidden border border-theme-neutral-200 bg-gradient-to-r from-theme-primary-DEFAULT to-theme-primary-dark shadow-lg flex items-center justify-center text-white card-hover-effect">
+                  {/* Check if image property exists and has a value */}
+                  {courseData.image ? (
+                    <Image
+                      src={courseData.image}
+                      alt={courseData.title}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      className="opacity-90"
+                    />
+                  ) : (
+                    <div className="text-center p-8">
+                      <h3 className="text-2xl font-bold mb-2">{courseData.title}</h3>
+                      <p className="text-white/80">{courseData.credits} Credits • {courseData.duration}</p>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  <div className="absolute bottom-4 left-6 right-6 text-white">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-medium">{courseData.duration}</span>
+                      
+                      <span className="mx-2">•</span>
+                      
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span className="font-medium">{courseData.credits} Credits</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-sm">By <span className="font-semibold">{courseData.instructor.name}</span></span>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className="prose max-w-none">
-              <h2 className="text-2xl font-bold mb-4 text-theme-neutral-800">Course Description</h2>
-              <p className="mb-8 text-theme-neutral-600">{courseData.description}</p>
+                <div className="prose max-w-none bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-md border border-theme-neutral-200">
+                  <h2 className="text-2xl font-bold mb-4 accent-gradient-text">Course Description</h2>
+                  <p className="mb-8 text-theme-neutral-600 leading-relaxed">{courseData.description}</p>
 
-              <h2 className="text-2xl font-bold mb-4 text-theme-neutral-800">Learning Objectives</h2>
-              <ul className="space-y-2 mb-8">
-                {courseData.objectives.map((objective, index) => (
-                  <li key={index} className="flex items-start text-theme-neutral-600">
-                    <span className="text-theme-accent-DEFAULT mr-2">✓</span>
-                    {objective}
-                  </li>
-                ))}
-              </ul>
+                  <h2 className="text-2xl font-bold mb-4 accent-gradient-text">Learning Objectives</h2>
+                  <ul className="space-y-4 mb-8">
+                    {courseData.objectives.map((objective, index) => (
+                      <li key={index} className="flex items-start text-theme-neutral-600 bg-white/60 p-3 rounded-lg border border-theme-neutral-200 shadow-sm animate-fadeInLeft" style={{ animationDelay: `${100 + (index * 100)}ms` }}>
+                        <span className="text-theme-accent-DEFAULT mr-3 bg-theme-accent-light/20 p-1 rounded-full">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                        {objective}
+                      </li>
+                    ))}
+                  </ul>
 
-              <h2 className="text-2xl font-bold mb-4 text-theme-neutral-800">Course Features</h2>
-              <ul className="space-y-2 mb-8">
-                {courseData.features.map((feature, index) => (
-                  <li key={index} className="flex items-start text-theme-neutral-600">
-                    <span className="text-theme-accent-DEFAULT mr-2">•</span>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              {exams.length > 0 && (
-                <>
-                  <h2 className="text-2xl font-bold mb-4 text-theme-neutral-800">Course Exams</h2>
-                  <div className="space-y-4 mb-8">
-                    {exams.map((exam) => (
-                      <div 
-                        key={exam.id} 
-                        className="border border-theme-neutral-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                      >
-                        <h3 className="text-xl font-semibold mb-2">{exam.title}</h3>
-                        <p className="text-theme-neutral-600 mb-4">{exam.description}</p>
-                        <div className="flex justify-between items-center">
-                          <div className="text-sm text-theme-neutral-500">
-                            Passing score: {exam.passing_score}%
-                          </div>
-                          <Link
-                            href={`/courses/${params.slug}/exam?examId=${exam.id}`}
-                            className="px-4 py-2 bg-theme-accent-DEFAULT hover:bg-theme-accent-dark text-white rounded-md text-sm font-medium transition-colors"
-                          >
-                            Take Exam
-                          </Link>
-                        </div>
+                  <h2 className="text-2xl font-bold mb-4 secondary-gradient-text">Course Features</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    {courseData.features.map((feature, index) => (
+                      <div key={index} className="flex items-start text-theme-neutral-600 bg-white/60 p-3 rounded-lg border border-theme-neutral-200 shadow-sm animate-fadeInLeft" style={{ animationDelay: `${300 + (index * 100)}ms` }}>
+                        <span className="text-theme-secondary-DEFAULT mr-3 bg-theme-secondary-light/20 p-1 rounded-full">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </span>
+                        {feature}
                       </div>
                     ))}
                   </div>
-                </>
-              )}
 
-              <h2 className="text-2xl font-bold mb-4 text-theme-neutral-800">Instructor</h2>
-              <div className="flex items-start gap-4">
-                {courseData.instructor.image ? (
-                  <Image
-                    src={courseData.instructor.image}
-                    alt={courseData.instructor.name}
-                    width={100}
-                    height={100}
-                    className="rounded-full"
-                  />
-                ) : (
-                  <div className="w-[100px] h-[100px] bg-theme-neutral-200 rounded-full flex items-center justify-center text-theme-neutral-600">
-                    {courseData.instructor.name.charAt(0)}
+                  {exams.length > 0 && (
+                    <>
+                      <h2 className="text-2xl font-bold mb-4 primary-gradient-text">Course Exams</h2>
+                      <div className="space-y-4 mb-8">
+                        {exams.map((exam, index) => (
+                          <div 
+                            key={exam.id} 
+                            className="border border-theme-neutral-200 rounded-lg p-6 hover:shadow-md transition-shadow bg-white/80 animate-fadeInUp"
+                            style={{ animationDelay: `${500 + (index * 100)}ms` }}
+                          >
+                            <h3 className="text-xl font-semibold mb-2 text-theme-neutral-800">{exam.title}</h3>
+                            <p className="text-theme-neutral-600 mb-4">{exam.description}</p>
+                            <div className="flex justify-between items-center">
+                              <div className="text-sm text-theme-neutral-500 bg-theme-neutral-100 px-3 py-1 rounded-full">
+                                Passing score: {exam.passing_score}%
+                              </div>
+                              <Link
+                                href={`/courses/${slug}/exam?examId=${exam.id}`}
+                                className="px-4 py-2 bg-gradient-to-r from-theme-accent-DEFAULT to-theme-accent-dark text-white rounded-md text-sm font-medium transition-colors hover:shadow-md"
+                              >
+                                Take Exam
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <h2 className="text-2xl font-bold mb-4 primary-gradient-text">Instructor</h2>
+                  <div className="flex flex-col md:flex-row items-start gap-6 bg-white/60 p-6 rounded-lg border border-theme-neutral-200 shadow-sm animate-fadeInUp" style={{ animationDelay: '700ms' }}>
+                    {courseData.instructor.image ? (
+                      <Image
+                        src={courseData.instructor.image}
+                        alt={courseData.instructor.name}
+                        width={120}
+                        height={120}
+                        className="rounded-full border-4 border-white shadow-md"
+                      />
+                    ) : (
+                      <div className="w-[120px] h-[120px] bg-gradient-to-br from-theme-primary-light to-theme-primary-DEFAULT rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-md">
+                        {courseData.instructor.name.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-xl font-bold mb-2 text-theme-neutral-800">{courseData.instructor.name}</h3>
+                      <p className="text-theme-neutral-600 leading-relaxed">{courseData.instructor.bio}</p>
+                    </div>
                   </div>
-                )}
-                <div>
-                  <h3 className="text-xl font-bold mb-2 text-theme-neutral-800">{courseData.instructor.name}</h3>
-                  <p className="text-theme-neutral-600">{courseData.instructor.bio}</p>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Enrollment Card */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-lg p-6 sticky top-6 border border-theme-neutral-200">
-              <div className="text-3xl font-bold mb-4 text-theme-accent-DEFAULT">${courseData.price.toFixed(2)}</div>
-              
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-theme-neutral-600">Duration:</span>
-                  <span className="font-semibold text-theme-neutral-800">{courseData.duration}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-theme-neutral-600">Credits:</span>
-                  <span className="font-semibold text-theme-neutral-800">{courseData.credits} Credits</span>
-                </div>
-                {exams.length > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-theme-neutral-600">Exams:</span>
-                    <span className="font-semibold text-theme-neutral-800">{exams.length}</span>
+              {/* Enrollment Card */}
+              <div className="lg:col-span-1 animate-fadeInLeft" style={{ animationDelay: '300ms' }}>
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-8 sticky top-6 border border-theme-neutral-200">
+                  <div className="text-3xl font-bold mb-2 accent-gradient-text">${courseData.price.toFixed(2)}</div>
+                  <div className="text-theme-neutral-500 text-sm mb-6">One-time payment, lifetime access</div>
+                  
+                  <div className="space-y-4 mb-6">
+                    <div className="flex justify-between items-center p-3 bg-theme-neutral-50 rounded-lg">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-theme-primary-DEFAULT" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-theme-neutral-600">Duration:</span>
+                      </div>
+                      <span className="font-semibold text-theme-neutral-800">{courseData.duration}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-theme-neutral-50 rounded-lg">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-theme-secondary-DEFAULT" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span className="text-theme-neutral-600">Credits:</span>
+                      </div>
+                      <span className="font-semibold text-theme-neutral-800">{courseData.credits} Credits</span>
+                    </div>
+                    {exams.length > 0 && (
+                      <div className="flex justify-between items-center p-3 bg-theme-neutral-50 rounded-lg">
+                        <div className="flex items-center">
+                          <svg className="w-5 h-5 mr-2 text-theme-accent-DEFAULT" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="text-theme-neutral-600">Exams:</span>
+                        </div>
+                        <span className="font-semibold text-theme-neutral-800">{exams.length}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <CourseEnrollButton courseId={courseData.id} />
+                  <CourseEnrollButton courseId={courseData.id} />
 
-              <div className="mt-6 text-sm text-theme-neutral-600">
-                <p className="mb-2">✓ Instant access</p>
-                <p className="mb-2">✓ Certificate upon completion</p>
-                <p>✓ 30-day money-back guarantee</p>
+                  <div className="mt-8 space-y-3 text-sm">
+                    <div className="flex items-center text-theme-neutral-700">
+                      <svg className="w-5 h-5 mr-3 text-theme-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Instant access to all materials</span>
+                    </div>
+                    <div className="flex items-center text-theme-neutral-700">
+                      <svg className="w-5 h-5 mr-3 text-theme-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Certificate upon completion</span>
+                    </div>
+                    <div className="flex items-center text-theme-neutral-700">
+                      <svg className="w-5 h-5 mr-3 text-theme-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>30-day money-back guarantee</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-8 pt-6 border-t border-theme-neutral-200">
+                    <div className="flex items-center justify-center gap-4 text-theme-neutral-500 text-sm">
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>Secure payment</span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        </svg>
+                        <span>Cloud access</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createCourse, updateCourse, getCourses, deleteCourse, deleteAllCourses } from '@/lib/courses';
 import type { Course, CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 import { cookies } from 'next/headers';
+import { createServerSupabaseClient, uploadFileFromServer } from '@/lib/supabase';
 
 // Valid course formats from the enum
 const VALID_FORMATS: CourseFormat[] = ['online', 'hardcopy', 'video'];
@@ -25,8 +26,25 @@ async function verifyAuth() {
 export async function GET() {
   try {
     await verifyAuth();
-    const courses = await getCourses();
-    return NextResponse.json(courses);
+    
+    // Updated to get courses with relations
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from('courses')
+      .select(`
+        *,
+        formats:course_formats(*),
+        credits:course_credits(*),
+        states:course_states(*)
+      `)
+      .order('title');
+      
+    if (error) {
+      console.error('Error fetching courses with relations:', error);
+      throw error;
+    }
+    
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error('Error fetching courses:', error);
     return NextResponse.json(
@@ -42,43 +60,96 @@ export async function POST(request: Request) {
     await verifyAuth();
     console.log('POST /api/courses - Authentication passed');
     
-    const data = await request.json();
-    console.log('POST /api/courses - Received data:', data);
+    // Check if the request is multipart form data
+    const contentType = request.headers.get('content-type') || '';
+    let courseData: any;
+    let formats: CourseFormatEntry[] = [];
+    let credits: CourseCredit[] = [];
+    let states: CourseState[] = [];
     
-    // Validate formats
-    if (data.formats && Array.isArray(data.formats)) {
-      for (const format of data.formats) {
-        const formatLower = format.format.toLowerCase();
-        if (!VALID_FORMATS.includes(formatLower)) {
-          console.error(`Invalid format: ${format.format}. Valid formats are: ${VALID_FORMATS.join(', ')}`);
-          return NextResponse.json(
-            { error: `Invalid format: ${format.format}. Valid formats are: ${VALID_FORMATS.join(', ')}` },
-            { status: 400 }
-          );
-        }
-        // Always set format to lowercase to match the database enum
-        format.format = formatLower;
+    if (contentType.includes('multipart/form-data')) {
+      // Handle form data with files
+      const formData = await request.formData();
+      courseData = {
+        sku: formData.get('sku') as string,
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        main_subject: formData.get('main_subject') as string,
+        author: formData.get('author') as string,
+        table_of_contents_url: '',
+        course_content_url: '',
+      };
+      
+      // Parse JSON strings from form data
+      formats = JSON.parse(formData.get('formats') as string || '[]');
+      credits = JSON.parse(formData.get('credits') as string || '[]');
+      states = JSON.parse(formData.get('states') as string || '[]');
+      
+      // Handle file uploads
+      const tocFile = formData.get('table_of_contents_file') as File;
+      const contentFile = formData.get('course_content_file') as File;
+      
+      // Upload files if they exist
+      if (tocFile && tocFile.size > 0) {
+        const tocPath = `courses/${Date.now()}-${tocFile.name}`;
+        courseData.table_of_contents_url = await uploadFileFromServer(
+          tocFile, 
+          'course-files', 
+          tocPath
+        );
+        console.log('Uploaded TOC file:', courseData.table_of_contents_url);
       }
+      
+      if (contentFile && contentFile.size > 0) {
+        const contentPath = `courses/${Date.now()}-${contentFile.name}`;
+        courseData.course_content_url = await uploadFileFromServer(
+          contentFile,
+          'course-files',
+          contentPath
+        );
+        console.log('Uploaded content file:', courseData.course_content_url);
+      }
+    } else {
+      // Handle regular JSON request
+      const data = await request.json();
+      console.log('POST /api/courses - Received data:', data);
+      
+      courseData = {
+        sku: data.sku,
+        title: data.title,
+        description: data.description,
+        main_subject: data.main_subject,
+        author: data.author,
+        table_of_contents_url: data.table_of_contents_url || '',
+        course_content_url: data.course_content_url || '',
+      };
+      
+      formats = data.formats || [];
+      credits = data.credits || [];
+      states = data.states || [];
     }
     
-    // Only include the base course fields in courseData
-    const courseData: Omit<Course, 'id' | 'created_at'> = {
-      sku: data.sku,
-      title: data.title,
-      description: data.description,
-      main_subject: data.main_subject,
-      author: data.author,
-      table_of_contents_url: data.table_of_contents_url || '',
-      course_content_url: data.course_content_url || '',
-    };
+    // Validate formats
+    for (const format of formats) {
+      const formatLower = format.format.toLowerCase() as CourseFormat;
+      if (!VALID_FORMATS.includes(formatLower)) {
+        console.error(`Invalid format: ${format.format}. Valid formats are: ${VALID_FORMATS.join(', ')}`);
+        return NextResponse.json(
+          { error: `Invalid format: ${format.format}. Valid formats are: ${VALID_FORMATS.join(', ')}` },
+          { status: 400 }
+        );
+      }
+      // Always set format to lowercase to match the database enum
+      format.format = formatLower;
+    }
 
     console.log('POST /api/courses - Prepared course data:', courseData);
     
     const course = await createCourse(
       courseData,
-      data.formats || [],
-      data.credits || [],
-      data.states || []
+      formats,
+      credits,
+      states
     );
 
     console.log('POST /api/courses - Course created successfully');
@@ -95,24 +166,85 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     await verifyAuth();
-    const data = await request.json();
-    const { id, ...courseData } = data;
+    
+    // Check if the request is multipart form data
+    const contentType = request.headers.get('content-type') || '';
+    let courseId: string;
+    let courseData: any;
+    let formats: CourseFormatEntry[] = [];
+    let credits: CourseCredit[] = [];
+    let states: CourseState[] = [];
+    
+    if (contentType.includes('multipart/form-data')) {
+      // Handle form data with files
+      const formData = await request.formData();
+      courseId = formData.get('id') as string;
+      courseData = {
+        sku: formData.get('sku') as string,
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        main_subject: formData.get('main_subject') as string,
+        author: formData.get('author') as string,
+        // Keep existing URLs by default
+        table_of_contents_url: formData.get('table_of_contents_url') as string,
+        course_content_url: formData.get('course_content_url') as string,
+      };
+      
+      // Parse JSON strings from form data
+      formats = JSON.parse(formData.get('formats') as string || '[]');
+      credits = JSON.parse(formData.get('credits') as string || '[]');
+      states = JSON.parse(formData.get('states') as string || '[]');
+      
+      // Handle file uploads
+      const tocFile = formData.get('table_of_contents_file') as File;
+      const contentFile = formData.get('course_content_file') as File;
+      
+      // Upload files if they exist
+      if (tocFile && tocFile.size > 0) {
+        const tocPath = `courses/${courseId}/toc-${Date.now()}-${tocFile.name}`;
+        courseData.table_of_contents_url = await uploadFileFromServer(
+          tocFile, 
+          'course-files', 
+          tocPath
+        );
+        console.log('Updated TOC file:', courseData.table_of_contents_url);
+      }
+      
+      if (contentFile && contentFile.size > 0) {
+        const contentPath = `courses/${courseId}/content-${Date.now()}-${contentFile.name}`;
+        courseData.course_content_url = await uploadFileFromServer(
+          contentFile,
+          'course-files',
+          contentPath
+        );
+        console.log('Updated content file:', courseData.course_content_url);
+      }
+    } else {
+      // Handle regular JSON request
+      const data = await request.json();
+      courseId = data.id;
+      courseData = {
+        sku: data.sku,
+        title: data.title,
+        description: data.description,
+        main_subject: data.main_subject,
+        author: data.author,
+        table_of_contents_url: data.table_of_contents_url,
+        course_content_url: data.course_content_url,
+      };
+      
+      formats = data.formats || [];
+      credits = data.credits || [];
+      states = data.states || [];
+    }
 
-    // Only include the base course fields in courseData
+    // Update the course
     const course = await updateCourse(
-      id,
-      {
-        sku: courseData.sku,
-        title: courseData.title,
-        description: courseData.description,
-        main_subject: courseData.main_subject,
-        author: courseData.author,
-        table_of_contents_url: courseData.table_of_contents_url,
-        course_content_url: courseData.course_content_url,
-      },
-      courseData.formats || [],
-      courseData.credits || [],
-      courseData.states || []
+      courseId,
+      courseData,
+      formats,
+      credits,
+      states
     );
 
     return NextResponse.json(course);

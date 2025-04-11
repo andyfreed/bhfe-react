@@ -9,6 +9,8 @@ const initialCourseState: Omit<Course, 'id' | 'created_at'> & {
   formats: CourseFormatEntry[];
   credits: CourseCredit[];
   states: CourseState[];
+  table_of_contents_file?: File | null;
+  course_content_file?: File | null;
 } = {
   sku: '',
   title: '',
@@ -19,7 +21,9 @@ const initialCourseState: Omit<Course, 'id' | 'created_at'> & {
   course_content_url: '',
   formats: [],
   credits: [],
-  states: []
+  states: [],
+  table_of_contents_file: null,
+  course_content_file: null
 };
 
 // Valid course formats from the enum
@@ -43,6 +47,8 @@ export default function CourseForm({ params }: PageParams) {
     formats: CourseFormatEntry[];
     credits: CourseCredit[];
     states: CourseState[];
+    table_of_contents_file?: File | null;
+    course_content_file?: File | null;
   }>(initialCourseState);
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const { action } = use(params);
@@ -91,15 +97,59 @@ export default function CourseForm({ params }: PageParams) {
       setLoading(true);
       setError(null);
       
-      const { id, ...courseData } = course;
+      // Create FormData to handle file uploads
+      const formData = new FormData();
       
-      const response = await fetch('/api/courses', {
-        method: action === 'edit' ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(action === 'edit' ? { id, ...courseData } : courseData)
+      // Add all the text fields
+      const { id, table_of_contents_file, course_content_file, ...courseData } = course;
+      
+      if (action === 'edit' && id) {
+        formData.append('id', id);
+      }
+      
+      // Add text fields
+      Object.entries(courseData).forEach(([key, value]) => {
+        if (key !== 'formats' && key !== 'credits' && key !== 'states') {
+          formData.append(key, value as string);
+        }
+      });
+      
+      // Add nested data as JSON strings
+      formData.append('formats', JSON.stringify(course.formats));
+      formData.append('credits', JSON.stringify(course.credits));
+      formData.append('states', JSON.stringify(course.states));
+      
+      // Add files if they exist
+      if (table_of_contents_file) {
+        formData.append('table_of_contents_file', table_of_contents_file);
+      }
+      
+      if (course_content_file) {
+        formData.append('course_content_file', course_content_file);
+      }
+      
+      // Determine the correct endpoint URL
+      // For editing, use /api/courses/{id}
+      // For new courses, use /api/courses
+      const url = action === 'edit' && id 
+        ? `/api/courses/${id}` 
+        : '/api/courses';
+        
+      const method = action === 'edit' ? 'PUT' : 'POST';
+      
+      console.log(`Submitting ${method} request to ${url}`);
+      
+      const response = await fetch(url, {
+        method: method,
+        body: formData
+        // Don't set Content-Type header, as it will be automatically set with FormData
       });
 
-      if (!response.ok) throw new Error('Failed to save course');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('API error response:', errorData);
+        throw new Error(`Failed to save course: ${errorData?.error || response.statusText}`);
+      }
       
       router.push('/admin/courses');
     } catch (err) {
@@ -112,6 +162,13 @@ export default function CourseForm({ params }: PageParams) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setCourse(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files.length > 0) {
+      setCourse(prev => ({ ...prev, [name]: files[0] }));
+    }
   };
 
   const addFormat = () => {
@@ -140,7 +197,7 @@ export default function CourseForm({ params }: PageParams) {
   const addCredit = () => {
     setCourse(prev => ({
       ...prev,
-      credits: [...prev.credits, { credit_type: '', amount: 0 }]
+      credits: [...prev.credits, { credit_type: '', amount: 0, course_number: '' }]
     }));
   };
 
@@ -163,7 +220,7 @@ export default function CourseForm({ params }: PageParams) {
   const addState = () => {
     setCourse(prev => ({
       ...prev,
-      states: [...prev.states, { state: '' }]
+      states: [...prev.states, { state_code: '' }]
     }));
   };
 
@@ -171,7 +228,7 @@ export default function CourseForm({ params }: PageParams) {
     setCourse(prev => ({
       ...prev,
       states: prev.states.map((state, i) => 
-        i === index ? { state: value } : state
+        i === index ? { state_code: value } : state
       )
     }));
   };
@@ -222,7 +279,7 @@ export default function CourseForm({ params }: PageParams) {
       </div>
 
       {activeTab === 'details' ? (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" encType="multipart/form-data">
           <div>
             <label htmlFor="sku" className="block text-sm font-medium text-gray-700">SKU</label>
             <input
@@ -286,26 +343,62 @@ export default function CourseForm({ params }: PageParams) {
           </div>
 
           <div>
-            <label htmlFor="table_of_contents_url" className="block text-sm font-medium text-gray-700">Table of Contents URL</label>
-            <input
-              type="url"
-              id="table_of_contents_url"
-              name="table_of_contents_url"
-              value={course.table_of_contents_url}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            <label htmlFor="table_of_contents_file" className="block text-sm font-medium text-gray-700">Table of Contents PDF</label>
+            <div className="mt-1 flex items-center">
+              <input
+                type="file"
+                id="table_of_contents_file"
+                name="table_of_contents_file"
+                accept=".pdf"
+                onChange={handleFileChange}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              {course.table_of_contents_url && (
+                <a 
+                  href={course.table_of_contents_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-3 text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  View Current PDF
+                </a>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-gray-500">Upload a PDF file for the table of contents</p>
+            <input 
+              type="hidden" 
+              name="table_of_contents_url" 
+              value={course.table_of_contents_url} 
             />
           </div>
 
           <div>
-            <label htmlFor="course_content_url" className="block text-sm font-medium text-gray-700">Course Content URL</label>
-            <input
-              type="url"
-              id="course_content_url"
-              name="course_content_url"
-              value={course.course_content_url}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            <label htmlFor="course_content_file" className="block text-sm font-medium text-gray-700">Course Content PDF</label>
+            <div className="mt-1 flex items-center">
+              <input
+                type="file"
+                id="course_content_file"
+                name="course_content_file"
+                accept=".pdf"
+                onChange={handleFileChange}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              {course.course_content_url && (
+                <a 
+                  href={course.course_content_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-3 text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  View Current PDF
+                </a>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-gray-500">Upload a PDF file for the course content</p>
+            <input 
+              type="hidden" 
+              name="course_content_url" 
+              value={course.course_content_url} 
             />
           </div>
 
@@ -352,12 +445,15 @@ export default function CourseForm({ params }: PageParams) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Credits</label>
+            <p className="text-xs text-gray-500 mb-2">
+              Note: EA and OTRP are separate credit types. If a course has both EA/OTRP credits, please add them as separate entries.
+            </p>
             {course.credits.map((credit, index) => (
               <div key={index} className="flex gap-4 mt-2">
                 <select
                   value={credit.credit_type}
                   onChange={(e) => updateCredit(index, 'credit_type', e.target.value)}
-                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className="w-1/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 >
                   <option value="">Select Credit Type</option>
                   {VALID_CREDIT_TYPES.map(creditType => (
@@ -371,7 +467,14 @@ export default function CourseForm({ params }: PageParams) {
                   value={credit.amount}
                   onChange={(e) => updateCredit(index, 'amount', parseFloat(e.target.value))}
                   placeholder="Amount"
-                  className="w-32 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className="w-1/4 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                />
+                <input
+                  type="text"
+                  value={credit.course_number || ''}
+                  onChange={(e) => updateCredit(index, 'course_number', e.target.value)}
+                  placeholder="Course Number"
+                  className="w-1/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 <button
                   type="button"
@@ -397,9 +500,9 @@ export default function CourseForm({ params }: PageParams) {
               <div key={index} className="flex gap-4 mt-2">
                 <input
                   type="text"
-                  value={stateObj.state}
+                  value={stateObj.state_code}
                   onChange={(e) => updateState(index, e.target.value)}
-                  placeholder="State"
+                  placeholder="State Code"
                   className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 <button

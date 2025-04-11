@@ -38,6 +38,8 @@ export interface Course {
     image: string;
   };
   image?: string;
+  subject?: string;
+  mainSubject?: string;
 }
 
 // Full database course model (for future use)

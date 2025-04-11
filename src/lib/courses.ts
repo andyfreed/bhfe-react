@@ -85,14 +85,15 @@ export async function createCourse(
     // Add formats
     if (formats.length > 0) {
       console.log("Adding formats:", formats);
-      const formatsWithCourseId = formats.map(format => ({
-        ...format,
+      const formatsToInsert = formats.map(format => ({
+        format: format.format,
+        price: format.price,
         course_id: courseData.id
       }));
       
       const { error: formatsError } = await supabase
         .from('course_formats')
-        .insert(formatsWithCourseId);
+        .insert(formatsToInsert);
         
       if (formatsError) {
         console.error('Error inserting course formats:', formatsError);
@@ -103,14 +104,16 @@ export async function createCourse(
     // Add credits
     if (credits.length > 0) {
       console.log("Adding credits:", credits);
-      const creditsWithCourseId = credits.map(credit => ({
-        ...credit,
+      const creditsToInsert = credits.map(credit => ({
+        credit_type: credit.credit_type,
+        amount: credit.amount,
+        course_number: credit.course_number || null,
         course_id: courseData.id
       }));
       
       const { error: creditsError } = await supabase
         .from('course_credits')
-        .insert(creditsWithCourseId);
+        .insert(creditsToInsert);
         
       if (creditsError) {
         console.error('Error inserting course credits:', creditsError);
@@ -168,15 +171,23 @@ export async function updateCourse(
     
     // Insert new formats
     if (formats.length > 0) {
+      const formatsToInsert = formats.map(format => {
+        // Only include specific fields, omitting id to let Supabase generate it
+        return {
+          format: format.format,
+          price: format.price,
+          course_id: id
+        };
+      });
+      
       const { error: formatsError } = await supabase
         .from('course_formats')
-        .insert(
-          formats.map(format => ({
-            ...format,
-            course_id: id
-          }))
-        );
-      if (formatsError) throw formatsError;
+        .insert(formatsToInsert);
+        
+      if (formatsError) {
+        console.error('Error inserting formats:', formatsError);
+        throw formatsError;
+      }
     }
   }
 
@@ -185,15 +196,24 @@ export async function updateCourse(
     await supabase.from('course_credits').delete().eq('course_id', id);
     
     if (credits.length > 0) {
+      const creditsToInsert = credits.map(credit => {
+        // Only include specific fields, omitting id to let Supabase generate it
+        return {
+          credit_type: credit.credit_type,
+          amount: credit.amount,
+          course_number: credit.course_number || null,
+          course_id: id
+        };
+      });
+      
       const { error: creditsError } = await supabase
         .from('course_credits')
-        .insert(
-          credits.map(credit => ({
-            ...credit,
-            course_id: id
-          }))
-        );
-      if (creditsError) throw creditsError;
+        .insert(creditsToInsert);
+        
+      if (creditsError) {
+        console.error('Error inserting credits:', creditsError);
+        throw creditsError;
+      }
     }
   }
 
@@ -202,15 +222,22 @@ export async function updateCourse(
     await supabase.from('course_states').delete().eq('course_id', id);
     
     if (states.length > 0) {
+      const statesToInsert = states.map(state => {
+        // Only include specific fields, omitting id to let Supabase generate it
+        return {
+          state_code: state.state_code,
+          course_id: id
+        };
+      });
+      
       const { error: statesError } = await supabase
         .from('course_states')
-        .insert(
-          states.map(state => ({
-            state_code: state.state_code,
-            course_id: id
-          }))
-        );
-      if (statesError) throw statesError;
+        .insert(statesToInsert);
+        
+      if (statesError) {
+        console.error('Error inserting states:', statesError);
+        throw statesError;
+      }
     }
   }
 

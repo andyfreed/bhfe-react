@@ -121,13 +121,19 @@ function extractStates(statesStr: string): CourseState[] {
     .filter(state => state.state_code); // Remove any states without a valid code
 }
 
-// Helper function to find a value from an object using multiple possible keys
-function findValue(obj: Record<string, any>, keys: string[]): string | null {
-  for (const key of keys) {
-    if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
-      return String(obj[key]).trim();
+// Helper function to find a field by partial name match
+function findFieldByPartialName(row: Record<string, any>, partialName: string): string | null {
+  const allKeys = Object.keys(row);
+  const matchingKeys = allKeys.filter(key => 
+    key.toLowerCase().includes(partialName.toLowerCase())
+  );
+  
+  for (const key of matchingKeys) {
+    if (row[key] && String(row[key]).trim()) {
+      return String(row[key]).trim();
     }
   }
+  
   return null;
 }
 
@@ -216,6 +222,15 @@ export async function POST(request: NextRequest) {
         try {
           const row = batch[i];
           
+          // DIAGNOSIS: Log all column names exactly as they appear in Excel
+          console.log(`COLUMN NAMES IN FILE:`, Object.keys(row));
+          // Also log the first row data with column names
+          const rowData: Record<string, any> = {};
+          for (const key of Object.keys(row)) {
+            rowData[key] = row[key];
+          }
+          console.log(`FIRST ROW RAW DATA:`, JSON.stringify(rowData));
+          
           // Log all available column names for debugging
           console.log(`Row ${rowIndex + 1} columns:`, Object.keys(row));
           console.log(`Row ${rowIndex + 1} raw data:`, JSON.stringify(row).substring(0, 200) + '...');
@@ -234,40 +249,46 @@ export async function POST(request: NextRequest) {
           // This section needs careful attention
           let sku = '';
           
-          // Explicitly check each possible SKU field with detailed logging
-          if (row.SKU) {
-            sku = String(row.SKU).trim();
-            console.log(`Row ${rowIndex + 1}: Found SKU in 'SKU' field: ${sku}`);
-          } else if (row.sku) {
-            sku = String(row.sku).trim();
-            console.log(`Row ${rowIndex + 1}: Found SKU in 'sku' field: ${sku}`);
-          } else if (row['Course SKU']) {
-            sku = String(row['Course SKU']).trim();
-            console.log(`Row ${rowIndex + 1}: Found SKU in 'Course SKU' field: ${sku}`);
-          } else if (row.Course_SKU) {
-            sku = String(row.Course_SKU).trim();
-            console.log(`Row ${rowIndex + 1}: Found SKU in 'Course_SKU' field: ${sku}`);
-          } else if (row.Internal_SKU_N) {
-            sku = String(row.Internal_SKU_N).trim();
-            console.log(`Row ${rowIndex + 1}: Found SKU in 'Internal_SKU_N' field: ${sku}`);
-          } else {
-            // Only generate if truly not found
-            sku = `BH-${Date.now()}-${rowIndex}`;
-            console.log(`Row ${rowIndex + 1}: No SKU found in import, generated: ${sku}`);
+          // CRITICAL FIX: Check all field names for SKU in a case-insensitive manner
+          const allColumnNames = Object.keys(row);
+          console.log(`Row ${rowIndex + 1} ALL FIELD NAMES:`, allColumnNames);
+          
+          // First, try to find any field that might contain "SKU" in its name
+          const skuFields = allColumnNames.filter(key => 
+            key.toUpperCase().includes('SKU') || 
+            key.toLowerCase().includes('sku')
+          );
+          console.log(`Row ${rowIndex + 1} POTENTIAL SKU FIELDS:`, skuFields);
+          
+          // Try each potential SKU field
+          for (const field of skuFields) {
+            if (row[field] && String(row[field]).trim()) {
+              sku = String(row[field]).trim();
+              console.log(`Row ${rowIndex + 1}: Found SKU value "${sku}" in field "${field}"`);
+              break;
+            }
           }
           
-          // Extract all fields with detailed logging for each field
-          const description = extractField(row, ['Description', 'description', 'Course_Description', 'Course Description'], 'description', rowIndex) || '';
-          const author = extractField(row, ['Author', 'author', 'Instructor', 'instructor'], 'author', rowIndex) || '';
-          const mainSubject = extractField(row, ['Main_Subject', 'main_subject', 'Subject', 'subject', 'Category', 'category', 'Main Subject'], 'main_subject', rowIndex) || '';
+          // If still not found after searching all potential fields, generate one
+          if (!sku) {
+            sku = `BH-${Date.now()}-${rowIndex}`;
+            console.log(`Row ${rowIndex + 1}: No SKU found in any column, generated: ${sku}`);
+          }
+          
+          // Extract all fields more intelligently with auto-detection
+          // We're being more flexible with field names now
+          const description = findFieldByPartialName(row, 'description') || '';
+          const author = findFieldByPartialName(row, 'author') || findFieldByPartialName(row, 'instructor') || '';
+          const mainSubject = findFieldByPartialName(row, 'subject') || findFieldByPartialName(row, 'category') || '';
           
           // Get URLs
           const tocUrl = extractField(row, ['Table of Contents URL', 'TOC_URL', 'TOC URL', 'Table_of_Contents_URL'], 'TOC URL', rowIndex) || '';
           const contentUrl = extractField(row, ['Course Content URL', 'Content_URL', 'Content URL', 'Course_Content_URL'], 'Content URL', rowIndex) || '';
           
-          // Get states with better logging
-          let statesStr = extractField(row, ['States', 'states', 'State_Approvals', 'State Approvals', 'State Codes', 'State_Codes'], 'states', rowIndex) || '';
-          console.log(`Row ${rowIndex + 1}: States string:`, statesStr);
+          // Get states - use a more flexible approach
+          const statesField = findFieldByPartialName(row, 'state');
+          const statesStr = statesField || '';
+          console.log(`Row ${rowIndex + 1}: States from field:`, statesStr);
           const states = extractStates(statesStr);
           console.log(`Row ${rowIndex + 1}: Extracted state codes:`, states.map(s => s.state_code).join(', '));
           
@@ -305,7 +326,7 @@ export async function POST(request: NextRequest) {
           // CPA Credits
           const cpaCredits = parseFloat(extractField(row, ['CPA Credits', 'CPA_Credits'], 'CPA credits', rowIndex) || '0');
           if (cpaCredits > 0) {
-            const cpaCourseNumber = extractField(row, ['CPA Course Number', 'CPA_Course_Number', 'CPA_Subject'], 'CPA course number', rowIndex) || '';
+            const cpaCourseNumber = extractField(row, ['CPA Course Number', 'CPA_Course_Number'], 'CPA course number', rowIndex) || '';
             credits.push({
               credit_type: 'CPA',
               amount: cpaCredits,
@@ -317,13 +338,59 @@ export async function POST(request: NextRequest) {
           // CFP Credits
           const cfpCredits = parseFloat(extractField(row, ['CFP Credits', 'CFP_Credits'], 'CFP credits', rowIndex) || '0');
           if (cfpCredits > 0) {
-            const cfpCourseNumber = extractField(row, ['CFP Course Number', 'CFP_Course_Number', 'CFP_Subject'], 'CFP course number', rowIndex) || '';
+            const cfpCourseNumber = extractField(row, ['CFP Course Number', 'CFP_Course_Number'], 'CFP course number', rowIndex) || '';
             credits.push({
               credit_type: 'CFP',
               amount: cfpCredits,
               course_number: cfpCourseNumber
             });
             console.log(`Row ${rowIndex + 1}: Added CFP credits: ${cfpCredits}, course number: ${cfpCourseNumber || 'none'}`);
+          }
+          
+          // EA/OTRP Credits
+          const eaOtrpCredits = parseFloat(extractField(row, ['EA / OTRP Credits', 'EA/OTRP Credits', 'EA_/_OTRP_Credits', 'EA/OTRP_Credits'], 'EA/OTRP credits', rowIndex) || '0');
+          if (eaOtrpCredits > 0) {
+            const eaOtrpCourseNumber = extractField(row, ['EA / OTRP Course Number', 'EA/OTRP Course Number', 'EA_/_OTRP_Course_Number', 'EA/OTRP_Course_Number'], 'EA/OTRP course number', rowIndex) || '';
+            
+            // Add as separate EA and OTRP credits with the same amount and course number
+            credits.push({
+              credit_type: 'EA',
+              amount: eaOtrpCredits,
+              course_number: eaOtrpCourseNumber
+            });
+            
+            credits.push({
+              credit_type: 'OTRP',
+              amount: eaOtrpCredits,
+              course_number: eaOtrpCourseNumber
+            });
+            
+            console.log(`Row ${rowIndex + 1}: Added EA credits: ${eaOtrpCredits}, course number: ${eaOtrpCourseNumber || 'none'}`);
+            console.log(`Row ${rowIndex + 1}: Added OTRP credits: ${eaOtrpCredits}, course number: ${eaOtrpCourseNumber || 'none'}`);
+          }
+          
+          // ERPA Credits
+          const erpaCredits = parseFloat(extractField(row, ['ERPA Credits', 'ERPA_Credits'], 'ERPA credits', rowIndex) || '0');
+          if (erpaCredits > 0) {
+            const erpaCourseNumber = extractField(row, ['ERPA Course Number', 'ERPA_Course_Number'], 'ERPA course number', rowIndex) || '';
+            credits.push({
+              credit_type: 'ERPA',
+              amount: erpaCredits,
+              course_number: erpaCourseNumber
+            });
+            console.log(`Row ${rowIndex + 1}: Added ERPA credits: ${erpaCredits}, course number: ${erpaCourseNumber || 'none'}`);
+          }
+          
+          // CDFA Credits
+          const cdfaCredits = parseFloat(extractField(row, ['CDFA Credits', 'CDFA_Credits'], 'CDFA credits', rowIndex) || '0');
+          if (cdfaCredits > 0) {
+            const cdfaCourseNumber = extractField(row, ['CDFA Course Number', 'CDFA_Course_Number'], 'CDFA course number', rowIndex) || '';
+            credits.push({
+              credit_type: 'CDFA',
+              amount: cdfaCredits,
+              course_number: cdfaCourseNumber
+            });
+            console.log(`Row ${rowIndex + 1}: Added CDFA credits: ${cdfaCredits}, course number: ${cdfaCourseNumber || 'none'}`);
           }
           
           // Create the course object with all extracted fields

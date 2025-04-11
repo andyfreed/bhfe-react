@@ -55,6 +55,8 @@ export interface Course {
   course_content_url: string;
   certificates?: string;
   created_at: string;
+  updated_at?: string;
+  last_updated?: string;
 }
 
 export interface CourseFormatEntry {
