@@ -27,6 +27,9 @@ export const courses: Course[] = [
       name: 'John Smith',
       bio: 'CFP® professional with 20+ years of experience in financial planning and education.',
       image: '/images/instructors/john-smith.jpg'
+    },
+    creditsByType: {
+      'CFP': 40
     }
   },
   {
@@ -55,6 +58,10 @@ export const courses: Course[] = [
       name: 'Sarah Johnson',
       bio: 'CPA with expertise in tax planning and wealth management.',
       image: '/images/instructors/sarah-johnson.jpg'
+    },
+    creditsByType: {
+      'CPA': 14,
+      'IRS': 2
     }
   },
   {
@@ -83,6 +90,11 @@ export const courses: Course[] = [
       name: 'Michael Chen',
       bio: 'Ethics expert and former regulatory compliance officer.',
       image: '/images/instructors/michael-chen.jpg'
+    },
+    creditsByType: {
+      'CFP': 2,
+      'CPA': 2,
+      'IRS': 2
     }
   }
 ]; 

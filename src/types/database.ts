@@ -44,6 +44,22 @@ export interface UserExamAnswer {
   created_at: string;
 }
 
+export interface UserEnrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  progress: number;
+  completed: boolean;
+  enrolled_by: string | null;
+  enrollment_type: string;
+  enrollment_notes: string | null;
+  enrolled_at: string;
+  last_accessed_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Course {
   id: string;
   sku: string;
@@ -161,6 +177,11 @@ export interface Database {
         Row: UserExamAnswer;
         Insert: Omit<UserExamAnswer, 'id' | 'created_at'>;
         Update: Partial<Omit<UserExamAnswer, 'id' | 'created_at'>>;
+      };
+      user_enrollments: {
+        Row: UserEnrollment;
+        Insert: Omit<UserEnrollment, 'id' | 'created_at'>;
+        Update: Partial<Omit<UserEnrollment, 'id' | 'created_at'>>;
       };
     };
   };

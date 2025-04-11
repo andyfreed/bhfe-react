@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo } from 'react';
 import CourseCard from '@/components/courses/CourseCard';
 import { Course, CourseType } from '@/types/course';
 import type { CourseWithRelations } from '@/types/database';
-import { courses as dummyCourses } from '@/data/courses';
 import Link from 'next/link';
 import BackgroundEffect from '@/components/ui/BackgroundEffect';
 import { sanitizeText } from '@/utils/text';
@@ -28,6 +27,14 @@ const adaptCourse = (course: CourseWithRelations): Course => {
     ? course.credits.reduce((total, credit) => total + credit.amount, 0)
     : 0;
   
+  // Organize credits by type
+  const creditsByType: Record<string, number> = {};
+  if (course.credits && course.credits.length > 0) {
+    course.credits.forEach(credit => {
+      creditsByType[credit.credit_type] = credit.amount;
+    });
+  }
+  
   return {
     id: course.id,
     title: sanitizeText(course.title),
@@ -45,7 +52,8 @@ const adaptCourse = (course: CourseWithRelations): Course => {
       image: '/images/instructors/default.jpg'
     },
     subject: sanitizeText(course.main_subject),
-    mainSubject: sanitizeText(course.main_subject)
+    mainSubject: sanitizeText(course.main_subject),
+    creditsByType: creditsByType
   };
 };
 
@@ -58,13 +66,12 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [useDummyData, setUseDummyData] = useState(false);
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'title-asc' | 'title-desc' | 'credits-asc' | 'credits-desc'>('title-asc');
   const [showFilters, setShowFilters] = useState(false);
 
-  // Function to load real courses data
-  const loadRealCourses = async () => {
+  // Function to load courses data
+  const loadCourses = async () => {
     try {
       setIsLoading(true);
       
@@ -91,59 +98,34 @@ export default function CoursesPage() {
       // Build the URL with query parameters
       const url = `/api/public/courses${params.toString() ? `?${params.toString()}` : ''}`;
       
-      // Try to get real courses from the public API
+      // Get courses from the public API
       const response = await fetch(url);
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data && Array.isArray(data) && data.length > 0) {
-          console.log(`Using ${data.length} real courses from API`);
-          const adaptedCourses = data.map(adaptCourse);
-          setCourses(adaptedCourses);
-          setUseDummyData(false);
-          return true;
-        }
+      if (!response.ok) {
+        throw new Error('Failed to fetch courses');
       }
       
-      return false;
+      const data = await response.json();
+      
+      if (!data || !Array.isArray(data)) {
+        throw new Error('Invalid response format');
+      }
+      
+      console.log(`Loaded ${data.length} courses from API`);
+      const adaptedCourses = data.map(adaptCourse);
+      setCourses(adaptedCourses);
     } catch (err) {
-      console.error('Error loading real courses:', err);
-      return false;
+      console.error('Error loading courses:', err);
+      setError('Failed to load courses. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  // Function to load dummy courses as fallback
-  const loadDummyCourses = () => {
-    console.log('Using dummy course data');
-    setCourses(dummyCourses);
-    setUseDummyData(true);
   };
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        
-        // First try to get real data
-        const gotRealData = await loadRealCourses();
-        
-        // If real data failed, use dummy data
-        if (!gotRealData) {
-          loadDummyCourses();
-        }
-      } catch (err) {
-        console.error('Error fetching courses:', err);
-        setError('Failed to load courses. Please try again later.');
-        loadDummyCourses();
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    
     // Reset to first page when filters change
     setCurrentPage(1);
-    fetchData();
+    loadCourses();
   }, [searchQuery, selectedTypes.length === 1 ? selectedTypes[0] : null, selectedSubjects.length === 1 ? selectedSubjects[0] : null, sortBy]);
 
   // Extract all types, subjects, and price range
@@ -190,7 +172,7 @@ export default function CoursesPage() {
     setMaxPrice(minMaxPrice[1]);
     
     // Reload data without filters
-    loadRealCourses();
+    loadCourses();
   };
 
   // Apply all filters
@@ -256,7 +238,7 @@ export default function CoursesPage() {
 
   const refreshData = async () => {
     setError(null);
-    await loadRealCourses();
+    await loadCourses();
   };
 
   return (
@@ -273,17 +255,6 @@ export default function CoursesPage() {
             <p className="text-theme-neutral-600 text-lg max-w-2xl mx-auto">
               Browse our selection of professional development courses designed to enhance your skills and advance your career.
             </p>
-            {useDummyData && (
-              <div className="mt-4 text-amber-600 bg-amber-50 p-2 rounded-md inline-block">
-                <span className="font-semibold">Note:</span> Currently displaying demo courses. 
-                <button 
-                  onClick={refreshData}
-                  className="ml-2 text-theme-primary-DEFAULT hover:underline"
-                >
-                  Check for real courses
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Mobile filter button */}
@@ -376,7 +347,7 @@ export default function CoursesPage() {
             <div className="text-center py-8 text-red-600">
               <p>{error}</p>
               <button 
-                onClick={() => window.location.reload()} 
+                onClick={() => refreshData()} 
                 className="mt-4 px-4 py-2 bg-theme-primary-DEFAULT text-white rounded-lg"
               >
                 Try Again
@@ -391,7 +362,7 @@ export default function CoursesPage() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Search courses or instructors..."
+                      placeholder="Search courses..."
                       className="w-full p-3 pl-10 rounded-lg border border-theme-neutral-300 focus:outline-none focus:ring-2 focus:ring-theme-primary-DEFAULT transition-all"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}

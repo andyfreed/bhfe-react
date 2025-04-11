@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { STRIPE_SECRET_KEY } from '@/config/stripe';
-import { courses } from '@/data/courses';
+import { getCourseWithRelations } from '@/lib/courses';
+import type { CourseWithRelations } from '@/types/database';
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
-});
+// Create Stripe instance with latest API version
+const stripe = new Stripe(STRIPE_SECRET_KEY);
 
 export async function POST(request: Request) {
   try {
     const { courseId } = await request.json();
-    const course = courses.find((c) => c.id === courseId);
+    
+    // Fetch the course from the database with all relations
+    const course = await getCourseWithRelations(courseId) as CourseWithRelations;
 
     if (!course) {
       return NextResponse.json(
@@ -19,6 +21,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get the lowest price from formats
+    const lowestPrice = course.formats && course.formats.length > 0
+      ? Math.min(...course.formats.map((f) => f.price))
+      : 0;
+
+    // Format the title and description for Stripe
+    const title = course.title || 'Course';
+    const description = course.description || '';
+    
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -27,18 +38,17 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: course.title,
-              description: course.description,
-              images: course.image ? [course.image] : undefined,
+              name: title,
+              description: description.substring(0, 500), // Limit description length for Stripe
             },
-            unit_amount: Math.round(course.price * 100), // Convert to cents
+            unit_amount: Math.round(lowestPrice * 100), // Convert to cents
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: `${request.headers.get('origin')}/courses/${course.slug}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.headers.get('origin')}/courses/${course.slug}`,
+      success_url: `${request.headers.get('origin')}/courses/${course.sku.toLowerCase().replace(/\s+/g, '-')}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${request.headers.get('origin')}/courses/${course.sku.toLowerCase().replace(/\s+/g, '-')}`,
       metadata: {
         courseId: course.id,
       },

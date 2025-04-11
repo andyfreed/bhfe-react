@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
   const pathname = usePathname();
@@ -23,6 +23,21 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
 }
 
 export default function AdminNav() {
+  const router = useRouter();
+  
+  const handleLogout = () => {
+    try {
+      // Clear admin authentication
+      localStorage.removeItem('admin_authenticated');
+      // Redirect to login page
+      router.push('/admin/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force a hard reload as a fallback
+      window.location.href = '/admin/login';
+    }
+  };
+  
   return (
     <nav className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,6 +51,8 @@ export default function AdminNav() {
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <NavLink href="/admin">Dashboard</NavLink>
               <NavLink href="/admin/courses">Courses</NavLink>
+              <NavLink href="/admin/users">Users</NavLink>
+              <NavLink href="/admin/enrollments">Enrollments</NavLink>
               <NavLink href="/admin/inquiries">Contact Inquiries</NavLink>
               <NavLink href="/admin/import">Import</NavLink>
             </div>
@@ -48,10 +65,7 @@ export default function AdminNav() {
               View Site
             </Link>
             <button
-              onClick={() => {
-                document.cookie = 'admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-                window.location.href = '/admin/login';
-              }}
+              onClick={handleLogout}
               className="text-gray-500 hover:text-gray-700 text-sm font-medium"
             >
               Logout

@@ -1,4 +1,3 @@
-import { courses as dummyCourses } from '@/data/courses';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -34,6 +33,7 @@ interface EnhancedCourse {
     image: string;
   };
   image?: string;
+  creditsByType?: Record<string, number>;
 }
 
 // Convert database course to frontend format
@@ -55,6 +55,14 @@ function adaptCourse(course: CourseWithRelations): EnhancedCourse {
   const totalCredits = course.credits
     ? course.credits.reduce((total, credit) => total + credit.amount, 0)
     : 0;
+  
+  // Organize credits by type
+  const creditsByType: Record<string, number> = {};
+  if (course.credits && course.credits.length > 0) {
+    course.credits.forEach(credit => {
+      creditsByType[credit.credit_type] = credit.amount;
+    });
+  }
   
   return {
     id: course.id,
@@ -82,7 +90,8 @@ function adaptCourse(course: CourseWithRelations): EnhancedCourse {
       name: sanitizeText(course.author),
       bio: 'Experienced instructor with many years of industry expertise.',
       image: '' // No image available
-    }
+    },
+    creditsByType: creditsByType
   };
 }
 
@@ -139,37 +148,23 @@ async function getCourseBySlug(slug: string): Promise<EnhancedCourse | null> {
   }
 }
 
-// Try to find a course in dummy data by slug
-function getDummyCourse(slug: string): EnhancedCourse | undefined {
-  return dummyCourses.find(c => c.slug === slug) as EnhancedCourse;
-}
-
 export default async function CoursePage({ params }: Props) {
   const { slug } = params;
   
-  // First try to get the real course
+  // Get the course from the database
   const course = await getCourseBySlug(slug);
   
-  // If not found, try dummy data
-  const fallbackCourse = !course ? getDummyCourse(slug) : null;
-  
-  // If neither found, 404
-  if (!course && !fallbackCourse) {
+  // If course not found, return 404
+  if (!course) {
     notFound();
   }
-  
-  // Use either the real course or fallback
-  // The non-null assertion is safe here because we already checked above
-  const courseData = (course || fallbackCourse)! as EnhancedCourse;
 
   // Get exams for this course
   let exams: Exam[] = [];
-  if (course) {
-    try {
-      exams = await getCourseExams(courseData.id);
-    } catch (error) {
-      console.error('Error fetching exams:', error);
-    }
+  try {
+    exams = await getCourseExams(course.id);
+  } catch (error) {
+    console.error('Error fetching exams:', error);
   }
 
   return (
@@ -189,7 +184,7 @@ export default async function CoursePage({ params }: Props) {
               </Link>
               
               <div className="flex flex-wrap gap-2 mb-4 animate-fadeIn">
-                {courseData.type.map((type) => (
+                {course.type.map((type) => (
                   <span
                     key={type}
                     className="px-3 py-1 text-sm font-semibold rounded-full glass-effect text-white backdrop-blur-sm"
@@ -200,58 +195,38 @@ export default async function CoursePage({ params }: Props) {
               </div>
               
               <h1 className="text-5xl font-bold mb-6 primary-gradient-text animate-fadeInUp">
-                {courseData.title}
+                {course.title}
               </h1>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
               {/* Course Content */}
               <div className="lg:col-span-2 animate-fadeInUp" style={{ animationDelay: '100ms' }}>
-                {/* Course Image/Banner */}
-                <div className="relative h-[400px] mb-8 rounded-xl overflow-hidden border border-theme-neutral-200 bg-gradient-to-r from-theme-primary-DEFAULT to-theme-primary-dark shadow-lg flex items-center justify-center text-white card-hover-effect">
-                  {/* Check if image property exists and has a value */}
-                  {courseData.image ? (
-                    <Image
-                      src={courseData.image}
-                      alt={courseData.title}
-                      fill
-                      style={{ objectFit: 'cover' }}
-                      className="opacity-90"
-                    />
-                  ) : (
-                    <div className="text-center p-8">
-                      <h3 className="text-2xl font-bold mb-2">{courseData.title}</h3>
-                      <p className="text-white/80">{courseData.credits} Credits • {courseData.duration}</p>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                  <div className="absolute bottom-4 left-6 right-6 text-white">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="font-medium">{courseData.duration}</span>
-                      
-                      <span className="mx-2">•</span>
-                      
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      <span className="font-medium">{courseData.credits} Credits</span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-sm">By <span className="font-semibold">{courseData.instructor.name}</span></span>
-                    </div>
+                {/* Display credits by license type */}
+                <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-md border border-theme-neutral-200 mb-8">
+                  <h2 className="text-xl font-bold mb-4 secondary-gradient-text">Credit Information</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {course.creditsByType && Object.entries(course.creditsByType).map(([type, amount]) => (
+                      amount > 0 ? (
+                        <div key={type} className="flex items-center bg-theme-neutral-50 p-3 rounded-lg">
+                          <span className="text-md font-medium text-theme-primary-DEFAULT mr-2">{type}:</span>
+                          <span className="text-md text-theme-neutral-700">{amount} credits</span>
+                        </div>
+                      ) : null
+                    ))}
+                    {(!course.creditsByType || Object.keys(course.creditsByType).length === 0) && (
+                      <span className="text-md text-theme-neutral-500 col-span-full">No credits information available</span>
+                    )}
                   </div>
                 </div>
 
                 <div className="prose max-w-none bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-md border border-theme-neutral-200">
                   <h2 className="text-2xl font-bold mb-4 accent-gradient-text">Course Description</h2>
-                  <p className="mb-8 text-theme-neutral-600 leading-relaxed">{courseData.description}</p>
+                  <p className="mb-8 text-theme-neutral-600 leading-relaxed">{course.description}</p>
 
                   <h2 className="text-2xl font-bold mb-4 accent-gradient-text">Learning Objectives</h2>
                   <ul className="space-y-4 mb-8">
-                    {courseData.objectives.map((objective, index) => (
+                    {course.objectives.map((objective, index) => (
                       <li key={index} className="flex items-start text-theme-neutral-600 bg-white/60 p-3 rounded-lg border border-theme-neutral-200 shadow-sm animate-fadeInLeft" style={{ animationDelay: `${100 + (index * 100)}ms` }}>
                         <span className="text-theme-accent-DEFAULT mr-3 bg-theme-accent-light/20 p-1 rounded-full">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,7 +240,7 @@ export default async function CoursePage({ params }: Props) {
 
                   <h2 className="text-2xl font-bold mb-4 secondary-gradient-text">Course Features</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                    {courseData.features.map((feature, index) => (
+                    {course.features.map((feature, index) => (
                       <div key={index} className="flex items-start text-theme-neutral-600 bg-white/60 p-3 rounded-lg border border-theme-neutral-200 shadow-sm animate-fadeInLeft" style={{ animationDelay: `${300 + (index * 100)}ms` }}>
                         <span className="text-theme-secondary-DEFAULT mr-3 bg-theme-secondary-light/20 p-1 rounded-full">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -308,22 +283,12 @@ export default async function CoursePage({ params }: Props) {
 
                   <h2 className="text-2xl font-bold mb-4 primary-gradient-text">Instructor</h2>
                   <div className="flex flex-col md:flex-row items-start gap-6 bg-white/60 p-6 rounded-lg border border-theme-neutral-200 shadow-sm animate-fadeInUp" style={{ animationDelay: '700ms' }}>
-                    {courseData.instructor.image ? (
-                      <Image
-                        src={courseData.instructor.image}
-                        alt={courseData.instructor.name}
-                        width={120}
-                        height={120}
-                        className="rounded-full border-4 border-white shadow-md"
-                      />
-                    ) : (
-                      <div className="w-[120px] h-[120px] bg-gradient-to-br from-theme-primary-light to-theme-primary-DEFAULT rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-md">
-                        {courseData.instructor.name.charAt(0)}
-                      </div>
-                    )}
+                    <div className="w-[120px] h-[120px] bg-gradient-to-br from-theme-primary-light to-theme-primary-DEFAULT rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-md">
+                      {course.instructor.name.charAt(0)}
+                    </div>
                     <div>
-                      <h3 className="text-xl font-bold mb-2 text-theme-neutral-800">{courseData.instructor.name}</h3>
-                      <p className="text-theme-neutral-600 leading-relaxed">{courseData.instructor.bio}</p>
+                      <h3 className="text-xl font-bold mb-2 text-theme-neutral-800">{course.instructor.name}</h3>
+                      <p className="text-theme-neutral-600 leading-relaxed">{course.instructor.bio}</p>
                     </div>
                   </div>
                 </div>
@@ -332,7 +297,7 @@ export default async function CoursePage({ params }: Props) {
               {/* Enrollment Card */}
               <div className="lg:col-span-1 animate-fadeInLeft" style={{ animationDelay: '300ms' }}>
                 <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-8 sticky top-6 border border-theme-neutral-200">
-                  <div className="text-3xl font-bold mb-2 accent-gradient-text">${courseData.price.toFixed(2)}</div>
+                  <div className="text-3xl font-bold mb-2 accent-gradient-text">${course.price.toFixed(2)}</div>
                   <div className="text-theme-neutral-500 text-sm mb-6">One-time payment, lifetime access</div>
                   
                   <div className="space-y-4 mb-6">
@@ -343,7 +308,7 @@ export default async function CoursePage({ params }: Props) {
                         </svg>
                         <span className="text-theme-neutral-600">Duration:</span>
                       </div>
-                      <span className="font-semibold text-theme-neutral-800">{courseData.duration}</span>
+                      <span className="font-semibold text-theme-neutral-800">{course.duration}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-theme-neutral-50 rounded-lg">
                       <div className="flex items-center">
@@ -352,7 +317,7 @@ export default async function CoursePage({ params }: Props) {
                         </svg>
                         <span className="text-theme-neutral-600">Credits:</span>
                       </div>
-                      <span className="font-semibold text-theme-neutral-800">{courseData.credits} Credits</span>
+                      <span className="font-semibold text-theme-neutral-800">{course.credits} Credits</span>
                     </div>
                     {exams.length > 0 && (
                       <div className="flex justify-between items-center p-3 bg-theme-neutral-50 rounded-lg">
@@ -367,7 +332,7 @@ export default async function CoursePage({ params }: Props) {
                     )}
                   </div>
 
-                  <CourseEnrollButton courseId={courseData.id} />
+                  <CourseEnrollButton courseId={course.id} />
 
                   <div className="mt-8 space-y-3 text-sm">
                     <div className="flex items-center text-theme-neutral-700">
@@ -397,12 +362,6 @@ export default async function CoursePage({ params }: Props) {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                         <span>Secure payment</span>
-                      </div>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                        </svg>
-                        <span>Cloud access</span>
                       </div>
                     </div>
                   </div>

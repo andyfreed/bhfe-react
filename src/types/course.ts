@@ -40,6 +40,7 @@ export interface Course {
   image?: string;
   subject?: string;
   mainSubject?: string;
+  creditsByType?: Record<string, number>;  // Map of credit type to amount
 }
 
 // Full database course model (for future use)

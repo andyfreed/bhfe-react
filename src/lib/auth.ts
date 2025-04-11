@@ -1,25 +1,6 @@
-import { cookies } from 'next/headers';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-export async function validateAdmin(supabase?: SupabaseClient): Promise<boolean> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('admin_token');
-    
-    // Use a secure token comparison in production
-    if (!token || token.value !== 'temporary-token') {
-      console.error('Authentication failed: Token missing or invalid');
-      return false;
-    }
-    
-    console.log('Authentication successful');
-    return true;
-  } catch (error) {
-    console.error('Authentication error:', error);
-    return false;
-  }
-}
-
+// Client-safe function for getting user ID
 export async function getUserId(supabase: SupabaseClient): Promise<string | null> {
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -34,4 +15,14 @@ export async function getUserId(supabase: SupabaseClient): Promise<string | null
     console.error('Error in getUserId:', error);
     return null;
   }
+}
+
+/**
+ * Check if the current user is an admin based on their email
+ * This is client-safe
+ */
+export async function isUserAdmin(email: string): Promise<boolean> {
+  // List of admin emails
+  const adminEmails = ['a.freed@outlook.com'];
+  return adminEmails.includes(email.toLowerCase());
 } 
