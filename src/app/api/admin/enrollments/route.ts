@@ -59,24 +59,31 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query;
     
     if (error) {
-      throw error;
+      console.error('Database error fetching enrollments:', error);
+      return NextResponse.json({
+        error: 'Failed to fetch enrollments: ' + error.message,
+        details: error,
+        enrollments: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      }, { status: 500 });
     }
     
     return NextResponse.json({
-      enrollments: data,
+      enrollments: data || [],
       pagination: {
         page,
         limit,
-        total: count,
+        total: count || 0,
         pages: Math.ceil((count || 0) / limit),
       }
     });
   } catch (error: any) {
     console.error('Error fetching enrollments:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch enrollments' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      error: error.message || 'Failed to fetch enrollments',
+      enrollments: [],
+      pagination: { page: 1, limit: 10, total: 0, pages: 0 }
+    }, { status: 500 });
   }
 }
 
