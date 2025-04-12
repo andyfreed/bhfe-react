@@ -19,6 +19,7 @@ export interface RegisterOptions {
 export interface LoginOptions {
   email: string;
   password: string;
+  rememberMe?: boolean;
   redirectTo?: string;
 }
 
@@ -70,12 +71,36 @@ export async function login(options: LoginOptions): Promise<AuthResult> {
   try {
     const { email, password } = options;
     
+    if (!email || !password) {
+      return {
+        data: null,
+        error: {
+          message: 'Email and password are required',
+          status: 400,
+        },
+      };
+    }
+
+    // Log auth attempt in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Attempting login with:', { email });
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
     if (error) {
+      // Log detailed error in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Login error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+        });
+      }
+      
       return {
         data: null,
         error: {
@@ -90,7 +115,22 @@ export async function login(options: LoginOptions): Promise<AuthResult> {
       error: null,
     };
   } catch (error) {
-    console.error('Unexpected error during login:', error);
+    // Log detailed error in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Unexpected login error:', error);
+    }
+    
+    // Handle network errors specifically
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      return {
+        data: null,
+        error: {
+          message: 'Unable to connect to authentication service. Please try again.',
+          status: 503,
+        },
+      };
+    }
+    
     return {
       data: null,
       error: {

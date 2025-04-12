@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { logout } from '@/lib/authService';
 
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
   const pathname = usePathname();
@@ -25,16 +26,14 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
 export default function AdminNav() {
   const router = useRouter();
   
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
-      // Clear admin authentication
-      localStorage.removeItem('admin_authenticated');
-      // Redirect to login page
-      router.push('/admin/login');
+      await logout();
+      router.replace('/');
     } catch (error) {
       console.error('Error during logout:', error);
       // Force a hard reload as a fallback
-      window.location.href = '/admin/login';
+      window.location.href = '/';
     }
   };
   

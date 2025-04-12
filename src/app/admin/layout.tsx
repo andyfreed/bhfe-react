@@ -2,8 +2,7 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
-import { AuthChangeEvent, Session } from '@supabase/supabase-js';
+import { getSession } from '@/lib/authService';
 import AdminNav from '@/components/AdminNav';
 
 interface AdminLayoutProps {
@@ -15,10 +14,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [mounted, setMounted] = useState(false);
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   useEffect(() => {
     setMounted(true);
@@ -26,71 +21,36 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     // Check authentication status
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: session, error: sessionError } = await getSession();
         
-        if (!session?.user && pathname !== '/admin/login') {
-          router.replace('/admin/login');
+        if (sessionError || !session?.user) {
           setIsAuthenticated(false);
+          router.replace('/login?redirect=/admin');
           return;
         }
 
-        if (session?.user) {
-          // Verify if user has admin role
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
+        // Verify if user has admin role
+        const response = await fetch('/api/user/profile');
+        const result = await response.json();
 
-          const isAdmin = profile?.role === 'admin';
-          setIsAuthenticated(isAdmin);
+        if (!response.ok || result.error) {
+          throw new Error(result.error || 'Failed to fetch profile');
+        }
 
-          if (!isAdmin && pathname !== '/admin/login') {
-            router.replace('/admin/login');
-          }
-        } else {
-          setIsAuthenticated(false);
+        const isAdmin = result.data?.role === 'admin';
+        setIsAuthenticated(isAdmin);
+
+        if (!isAdmin) {
+          router.replace('/'); // Redirect to home if not admin
         }
       } catch (error) {
         console.error('Authentication check error:', error);
         setIsAuthenticated(false);
-        if (pathname !== '/admin/login') {
-          router.replace('/admin/login');
-        }
+        router.replace('/');
       }
     };
 
     checkAuth();
-
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
-        if (event === 'SIGNED_OUT') {
-          setIsAuthenticated(false);
-          if (pathname !== '/admin/login') {
-            router.replace('/admin/login');
-          }
-        } else if (event === 'SIGNED_IN' && session?.user) {
-          // Verify admin role on sign in
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-
-          const isAdmin = profile?.role === 'admin';
-          setIsAuthenticated(isAdmin);
-
-          if (!isAdmin && pathname !== '/admin/login') {
-            router.replace('/admin/login');
-          }
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [pathname]);
 
   // Don't render anything until we've checked authentication
@@ -102,11 +62,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  // If on login page or authenticated, show content
-  if (pathname === '/admin/login' || isAuthenticated) {
+  // If authenticated as admin, show content
+  if (isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-100">
-        {isAuthenticated && <AdminNav />}
+        <AdminNav />
         <main className="py-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {children}
