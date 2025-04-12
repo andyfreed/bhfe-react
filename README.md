@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BHFE React Application
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js (v18 or higher recommended)
+- npm (comes with Node.js)
+- A Supabase account and project
 
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/andyfreed/bhfe-react.git
+cd bhfe-react
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+   - Create a `.env.local` file in the root directory
+   - Add the following variables:
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To get your Supabase credentials:
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Go to Project Settings -> API
+4. Copy the "Project URL" for `NEXT_PUBLIC_SUPABASE_URL`
+5. Copy the "anon" public key for `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-## Learn More
+### Database Setup
 
-To learn more about Next.js, take a look at the following resources:
+The application requires specific tables and roles in your Supabase database:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Create the profiles table:
+```sql
+create table profiles (
+  id uuid references auth.users on delete cascade,
+  role text,
+  primary key (id)
+);
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Set up the new user trigger:
+```sql
+create function public.handle_new_user() 
+returns trigger as $$
+begin
+  insert into public.profiles (id)
+  values (new.id);
+  return new;
+end;
+$$ language plpgsql security definer;
 
-## Deploy on Vercel
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. To create an admin user:
+   - Register a new user through the application
+   - In Supabase SQL editor, run:
+```sql
+update profiles
+set role = 'admin'
+where id = 'your_user_id';
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Running the Application
+
+1. Start the development server:
+```bash
+npm run dev
+```
+
+2. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+### Admin Access
+
+The admin section is protected and requires authentication. To access:
+1. Navigate to `/admin/login`
+2. Log in with an admin user (must have role = 'admin' in profiles table)
+3. You'll be redirected to the admin dashboard if authentication is successful
+
+### Project Structure
+
+```
+bhfe-react/
+├── src/
+│   ├── app/              # Next.js app router pages
+│   ├── components/       # React components
+│   ├── lib/             # Utility libraries
+│   └── styles/          # CSS and styling files
+├── public/              # Static files
+├── .env.local          # Local environment variables (not in git)
+└── package.json        # Project dependencies and scripts
+```
+
+### Environment Variables
+
+Required environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| NEXT_PUBLIC_SUPABASE_URL | Your Supabase project URL | https://xxx.supabase.co |
+| NEXT_PUBLIC_SUPABASE_ANON_KEY | Your Supabase anon key | eyJ0eXAi... |
+
+### Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Submit a pull request
+
+### Security Notes
+
+- Never commit `.env.local` or any other files containing sensitive information
+- Always use environment variables for sensitive configuration
+- Keep your Supabase keys secure and never share them publicly
+
+### Troubleshooting
+
+Common issues:
+
+1. **Supabase Connection Error**
+   - Check if your `.env.local` file exists and has the correct values
+   - Verify your Supabase project is active
+   - Ensure you're using the correct URL format (should start with `https://`)
+
+2. **Admin Access Denied**
+   - Verify your user exists in the profiles table
+   - Check if the role is set to 'admin'
+   - Try logging out and back in
+
+For more help, please submit an issue on GitHub.
