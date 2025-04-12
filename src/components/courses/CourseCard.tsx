@@ -17,78 +17,65 @@ export default function CourseCard({ course, featured = false }: CourseCardProps
   
   return (
     <div 
-      className="bg-white rounded-xl overflow-hidden border border-theme-neutral-200 h-full flex flex-col group card-hover-effect"
+      className={`backdrop-blur-sm bg-gradient-to-br from-slate-50/95 to-white/95 rounded-2xl overflow-hidden border border-neutral-200/50 h-full flex flex-col group transition-all duration-300 ${
+        isHovered ? 'shadow-xl transform -translate-y-1' : 'shadow-md'
+      }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Display course type tags at the top of the card */}
-      <div className="p-4 bg-theme-neutral-50">
-        <div className="flex flex-wrap gap-1">
-          {course.type.map((type) => (
-            <span
-              key={type}
-              className="px-3 py-1 text-xs font-semibold rounded-full bg-theme-primary-light text-theme-primary-DEFAULT"
-            >
-              {type}
-            </span>
-          ))}
+      <div className="p-6 flex flex-col flex-grow relative">
+        {/* Price tag */}
+        <div className="absolute -right-2 top-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white px-4 py-2 rounded-l-full shadow-lg transform group-hover:scale-105 transition-transform">
+          <span className="text-xl font-bold">
+            ${course.price.toFixed(2)}
+          </span>
         </div>
-      </div>
-      
-      <div className="p-6 flex flex-col flex-grow">
-        <h3 className="text-xl font-bold mb-2 primary-gradient-text">
+
+        <h3 className="text-2xl font-bold mb-4 text-slate-800 pr-24">
           {sanitizedTitle}
         </h3>
-        <p className="text-theme-neutral-600 mb-4 line-clamp-2">{course.description}</p>
         
         {course.subject && (
-          <p className="text-sm text-theme-neutral-500 mb-3">
-            <span className="font-medium">Subject: </span>
+          <p className="text-sm text-slate-600 mb-4 flex items-center">
+            <span className="w-2 h-2 rounded-full bg-blue-600 mr-2"></span>
             {sanitizeText(course.subject)}
           </p>
         )}
         
-        {/* Display credits by license type */}
-        <div className="bg-theme-neutral-50 p-3 rounded-lg mb-4">
-          <h4 className="text-sm font-semibold mb-2 text-theme-neutral-700">Credits By License Type:</h4>
-          <div className="grid grid-cols-2 gap-2">
+        {/* Credits section with modern design */}
+        <div className="bg-slate-100 p-4 rounded-xl mb-6 border border-slate-200">
+          <h4 className="text-sm font-semibold mb-3 text-slate-700">
+            This course offers the following credit
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
             {course.creditsByType && Object.entries(course.creditsByType).map(([type, amount]) => (
               amount > 0 ? (
-                <div key={type} className="flex items-center">
-                  <span className="text-sm font-medium text-theme-primary-DEFAULT mr-2">{type}:</span>
-                  <span className="text-sm text-theme-neutral-700">{amount}</span>
+                <div key={type} className="flex items-center bg-white p-2 rounded-lg border border-slate-200">
+                  <span className="text-sm font-medium text-blue-600 mr-2">{type}:</span>
+                  <span className="text-sm text-slate-700">{amount}</span>
                 </div>
               ) : null
             ))}
             {(!course.creditsByType || Object.keys(course.creditsByType).length === 0) && (
-              <span className="text-sm text-theme-neutral-500 col-span-2">No credits information available</span>
+              <span className="text-sm text-slate-500 col-span-2">No credits information available</span>
             )}
           </div>
         </div>
         
-        <div className="flex justify-between items-center pt-4 border-t border-theme-neutral-200 mt-auto">
-          <span className="text-2xl font-bold accent-gradient-text">
-            ${course.price.toFixed(2)}
-          </span>
+        {/* Action button */}
+        <div className="mt-auto">
           <Link
             href={`/courses/${course.slug}`}
-            className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 ${
+            className={`w-full inline-flex items-center justify-center py-3 px-6 rounded-xl font-semibold transition-all duration-300 ${
               featured
-                ? 'bg-theme-accent-DEFAULT text-white hover:bg-theme-accent-dark shadow-lg shadow-theme-accent-DEFAULT/20 hover:shadow-theme-accent-DEFAULT/30'
-                : 'relative overflow-hidden bg-theme-primary-DEFAULT text-white hover:bg-theme-primary-dark group-hover:scale-105'
+                ? 'bg-gradient-to-r from-indigo-600 to-indigo-800 text-white shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/30 hover:scale-105'
+                : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 hover:scale-105'
             }`}
           >
-            {featured ? (
-              <span className="relative z-10">Enroll Now</span>
-            ) : (
-              <>
-                <span className="relative z-10">Learn More</span>
-                <span className="absolute right-0 transform transition-transform duration-300 group-hover:translate-x-1">→</span>
-              </>
-            )}
-            {!featured && (
-              <span className="absolute inset-0 h-full w-full bg-gradient-to-r from-theme-primary-DEFAULT to-theme-primary-dark opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-            )}
+            <span className="mr-2">{featured ? 'Enroll Now' : 'Learn More'}</span>
+            <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
           </Link>
         </div>
       </div>

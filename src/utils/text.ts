@@ -8,14 +8,19 @@ export const sanitizeText = (text: string): string => {
   
   // Replace common problematic character sequences
   return text
-    .replace(/Ã\S+/g, 'A') // Replace Ã followed by any non-whitespace with A
-    .replace(/§/g, 'S')    // Replace section symbol with S
-    .replace(/Â/g, '')     // Remove invisible character
-    .replace(/â/g, '')     // Remove another invisible character
-    .replace(/\u00A0/g, ' ') // Replace non-breaking space with regular space
-    .replace(/–/g, '-')    // Replace en dash with hyphen
-    .replace(/—/g, '-')    // Replace em dash with hyphen
-    .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+    .replace(/Ã¢‚¬„¢/g, "'")  // Replace full sequence for apostrophe
+    .replace(/Ã¢‚¬/g, "'")    // Replace shorter variant
+    .replace(/§/g, 'S')       // Replace section symbol with S
+    .replace(/Â/g, '')        // Remove invisible character
+    .replace(/â/g, '')        // Remove another invisible character
+    .replace(/\u00A0/g, ' ')  // Replace non-breaking space with regular space
+    .replace(/–/g, '-')       // Replace en dash with hyphen
+    .replace(/—/g, '-')       // Replace em dash with hyphen
+    .replace(/'/g, "'")       // Replace curly single quote with straight single quote
+    .replace(/'/g, "'")       // Replace another curly single quote variant with straight single quote
+    .replace(/"/g, '"')       // Replace curly double quotes with straight double quotes
+    .replace(/"/g, '"')       // Replace another curly double quote variant with straight double quotes
+    .replace(/\s+/g, ' ')     // Replace multiple spaces with single space
     .trim();
 };
 

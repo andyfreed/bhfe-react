@@ -1,47 +1,47 @@
 :root {
-  /* Main brand colors - enhanced with more vibrant options */
-  --theme-primary-light: #5e9de6;
-  --theme-primary-DEFAULT: #2563eb;
-  --theme-primary-dark: #1d4ed8;
-  --theme-primary-gradient: linear-gradient(135deg, #2563eb, #1e40af);
+  /* Main brand colors - modern and vibrant */
+  --theme-primary-light: #818CF8;
+  --theme-primary-DEFAULT: #4F46E5;
+  --theme-primary-dark: #3730A3;
+  --theme-primary-gradient: linear-gradient(135deg, #818CF8, #4F46E5);
 
-  --theme-accent-light: #f59e0b;
-  --theme-accent-DEFAULT: #d97706;
-  --theme-accent-dark: #b45309;
-  --theme-accent-gradient: linear-gradient(135deg, #f59e0b, #b45309);
+  --theme-accent-light: #FB7185;
+  --theme-accent-DEFAULT: #F43F5E;
+  --theme-accent-dark: #BE123C;
+  --theme-accent-gradient: linear-gradient(135deg, #FB7185, #F43F5E);
 
   /* Secondary colors */
-  --theme-secondary-light: #10b981;
-  --theme-secondary-DEFAULT: #059669;
-  --theme-secondary-dark: #047857;
-  --theme-secondary-gradient: linear-gradient(135deg, #10b981, #047857);
+  --theme-secondary-light: #34D399;
+  --theme-secondary-DEFAULT: #10B981;
+  --theme-secondary-dark: #059669;
+  --theme-secondary-gradient: linear-gradient(135deg, #34D399, #10B981);
 
-  /* Neutral colors */
-  --theme-neutral-50: #f9fafb;
-  --theme-neutral-100: #f3f4f6;
-  --theme-neutral-200: #e5e7eb;
-  --theme-neutral-300: #d1d5db;
-  --theme-neutral-400: #9ca3af;
-  --theme-neutral-500: #6b7280;
-  --theme-neutral-600: #4b5563;
-  --theme-neutral-700: #374151;
-  --theme-neutral-800: #1f2937;
-  --theme-neutral-900: #111827;
+  /* Warm gray neutrals */
+  --theme-neutral-50: #FAFAF9;
+  --theme-neutral-100: #F5F5F4;
+  --theme-neutral-200: #E7E5E4;
+  --theme-neutral-300: #D6D3D1;
+  --theme-neutral-400: #A8A29E;
+  --theme-neutral-500: #78716C;
+  --theme-neutral-600: #57534E;
+  --theme-neutral-700: #44403C;
+  --theme-neutral-800: #292524;
+  --theme-neutral-900: #1C1917;
 
   /* Success/Error states */
-  --theme-success: #10b981;
-  --theme-error: #ef4444;
-  --theme-warning: #f59e0b;
-  --theme-info: #3b82f6;
+  --theme-success: #10B981;
+  --theme-error: #EF4444;
+  --theme-warning: #F59E0B;
+  --theme-info: #3B82F6;
 
-  /* Shadows */
-  --theme-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --theme-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --theme-shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --theme-shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --theme-shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --theme-shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-  --theme-shadow-outline: 0 0 0 3px rgba(66, 153, 225, 0.5);
+  /* Modern shadows with reduced opacity */
+  --theme-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --theme-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  --theme-shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  --theme-shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --theme-shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.04);
+  --theme-shadow-outline: 0 0 0 3px rgba(79, 70, 229, 0.4);
 
   /* Animation Durations */
   --theme-duration-75: 75ms;

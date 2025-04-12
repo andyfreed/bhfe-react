@@ -2,33 +2,44 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 
 export default function AdminLogin() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
-  // Handle mounting to avoid hydration issues
   useEffect(() => {
-    setIsMounted(true);
+    setMounted(true);
     
     // Check if already logged in
-    try {
-      const isAuthenticated = localStorage.getItem('admin_authenticated') === 'true';
-      if (isAuthenticated) {
-        router.push('/admin');
-      }
-    } catch (error) {
-      console.error('Error checking authentication:', error);
-      // Clear any potential corrupt state
+    const checkAuth = async () => {
       try {
-        localStorage.removeItem('admin_authenticated');
-      } catch (e) {
-        console.error('Failed to clear localStorage:', e);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Verify if user has admin role
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile?.role === 'admin') {
+            router.replace('/admin');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
       }
-    }
-  }, [router]);
+    };
+
+    checkAuth();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,29 +48,49 @@ export default function AdminLogin() {
 
     try {
       const formData = new FormData(e.currentTarget);
-      const username = formData.get('username') as string;
+      const email = formData.get('username') as string;
       const password = formData.get('password') as string;
 
-      // Simple authentication logic
-      if ((username === 'admin' && password === 'admin') || 
-          username.toLowerCase() === 'a.freed@outlook.com') {
-        // Set authentication in localStorage
-        localStorage.setItem('admin_authenticated', 'true');
-        router.push('/admin');
-      } else {
-        setError('Invalid credentials');
-        setIsLoading(false);
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        throw signInError;
       }
-    } catch (error) {
+
+      if (data?.user) {
+        // Verify if user has admin role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profile?.role === 'admin') {
+          router.replace('/admin');
+        } else {
+          setError('You do not have admin privileges');
+          // Sign out if not admin
+          await supabase.auth.signOut();
+        }
+      }
+    } catch (error: any) {
       console.error('Login error:', error);
-      setError('An error occurred during login. Please try again.');
+      setError(error.message || 'An error occurred during login. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Don't render anything until mounted to avoid hydration issues
-  if (!isMounted) {
-    return null;
+  // Don't render until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
   }
 
   return (
@@ -79,15 +110,15 @@ export default function AdminLogin() {
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="username" className="sr-only">
-                Username or Email
+                Email Address
               </label>
               <input
                 id="username"
                 name="username"
-                type="text"
+                type="email"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Username or Email"
+                placeholder="Email Address"
               />
             </div>
             <div>
