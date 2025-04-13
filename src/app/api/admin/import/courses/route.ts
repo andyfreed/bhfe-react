@@ -121,33 +121,54 @@ function extractStates(statesStr: string): CourseState[] {
     .filter(state => state.state_code); // Remove any states without a valid code
 }
 
-// Helper function to find a field by partial name match
-function findFieldByPartialName(row: Record<string, any>, partialName: string): string | null {
+// Helper function to find field by partial name
+function findFieldByPartialName(row: Record<string, any>, partialName: string): string {
   const allKeys = Object.keys(row);
   const matchingKeys = allKeys.filter(key => 
     key.toLowerCase().includes(partialName.toLowerCase())
   );
   
+  // Try exact matches first
   for (const key of matchingKeys) {
-    if (row[key] && String(row[key]).trim()) {
-      return String(row[key]).trim();
+    const value = row[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return String(value).trim();
     }
   }
   
-  return null;
-}
-
-// Helper function to extract a field with detailed logging
-function extractField(obj: Record<string, any>, keys: string[], fieldName: string, rowIndex: number): string | null {
-  for (const key of keys) {
-    if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
-      const value = String(obj[key]).trim();
-      console.log(`Row ${rowIndex + 1}: Found ${fieldName} in '${key}' field: ${value.substring(0, 50)}${value.length > 50 ? '...' : ''}`);
-      return value;
+  // If no exact match found, try fuzzy matches
+  for (const key of allKeys) {
+    if (key.toLowerCase().replace(/[_\s-]/g, '').includes(partialName.toLowerCase().replace(/[_\s-]/g, ''))) {
+      const value = row[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return String(value).trim();
+      }
     }
   }
-  console.log(`Row ${rowIndex + 1}: ${fieldName} not found`);
-  return null;
+  
+  return '';
+}
+
+// Function to check if a course with given SKU exists
+async function checkExistingSku(sku: string) {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from('courses')
+    .select('id')
+    .eq('sku', sku)
+    .single();
+  return data !== null;
+}
+
+// Function to extract field value with improved field name mapping
+function extractField(row: any, possibleNames: string[], fieldType: string, rowIndex: number): string {
+  for (const name of possibleNames) {
+    if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+      return String(row[name]);
+    }
+  }
+  console.log(`Row ${rowIndex + 1}: ${fieldType} not found`);
+  return '';
 }
 
 export async function POST(request: NextRequest) {
@@ -282,8 +303,8 @@ export async function POST(request: NextRequest) {
           const mainSubject = findFieldByPartialName(row, 'subject') || findFieldByPartialName(row, 'category') || '';
           
           // Get URLs
-          const tocUrl = extractField(row, ['Table of Contents URL', 'TOC_URL', 'TOC URL', 'Table_of_Contents_URL'], 'TOC URL', rowIndex) || '';
-          const contentUrl = extractField(row, ['Course Content URL', 'Content_URL', 'Content URL', 'Course_Content_URL'], 'Content URL', rowIndex) || '';
+          const tocUrl = findFieldByPartialName(row, 'toc') || findFieldByPartialName(row, 'toc_url') || findFieldByPartialName(row, 'toc_url') || '';
+          const contentUrl = findFieldByPartialName(row, 'content') || findFieldByPartialName(row, 'content_url') || findFieldByPartialName(row, 'content_url') || '';
           
           // Get states - use a more flexible approach
           const statesField = findFieldByPartialName(row, 'state');
@@ -296,7 +317,15 @@ export async function POST(request: NextRequest) {
           const formats: CourseFormatEntry[] = [];
           
           // Online format
-          const onlinePrice = parseFloat(extractField(row, ['Online Price', 'Online_Price', 'Price Online', 'Price_Online'], 'online price', rowIndex) || '0');
+          const onlinePrice = parseFloat(extractField(row, [
+            'Online Price', 
+            'Online_Price', 
+            'Price Online', 
+            'Price_Online',
+            'Online price',
+            'online_price',
+            'online price'
+          ], 'online price', rowIndex) || '0');
           if (onlinePrice > 0) {
             formats.push({ format: 'online', price: onlinePrice });
             console.log(`Row ${rowIndex + 1}: Added online format with price: $${onlinePrice}`);
@@ -307,14 +336,30 @@ export async function POST(request: NextRequest) {
           }
           
           // Hardcopy format
-          const hardcopyPrice = parseFloat(extractField(row, ['Hardcopy Price', 'Hardcopy_Price', 'Price Hardcopy', 'Price_Hardcopy'], 'hardcopy price', rowIndex) || '0');
+          const hardcopyPrice = parseFloat(extractField(row, [
+            'Hardcopy Price', 
+            'Hardcopy_Price', 
+            'Price Hardcopy', 
+            'Price_Hardcopy',
+            'Hardcopy price',
+            'hardcopy_price',
+            'hardcopy price'
+          ], 'hardcopy price', rowIndex) || '0');
           if (hardcopyPrice > 0) {
             formats.push({ format: 'hardcopy', price: hardcopyPrice });
             console.log(`Row ${rowIndex + 1}: Added hardcopy format with price: $${hardcopyPrice}`);
           }
           
           // Video format
-          const videoPrice = parseFloat(extractField(row, ['Video Price', 'Video_Price', 'Price Video', 'Price_Video'], 'video price', rowIndex) || '0');
+          const videoPrice = parseFloat(extractField(row, [
+            'Video Price', 
+            'Video_Price', 
+            'Price Video', 
+            'Price_Video',
+            'Video price',
+            'video_price',
+            'video price'
+          ], 'video price', rowIndex) || '0');
           if (videoPrice > 0) {
             formats.push({ format: 'video', price: videoPrice });
             console.log(`Row ${rowIndex + 1}: Added video format with price: $${videoPrice}`);
@@ -324,9 +369,15 @@ export async function POST(request: NextRequest) {
           const credits: CourseCredit[] = [];
           
           // CPA Credits
-          const cpaCredits = parseFloat(extractField(row, ['CPA Credits', 'CPA_Credits'], 'CPA credits', rowIndex) || '0');
+          const cpaCredits = parseFloat(extractField(row, [
+            'CPA Credits', 
+            'CPA_Credits',
+            'CPA credits',
+            'cpa_credits',
+            'cpa credits'
+          ], 'CPA credits', rowIndex) || '0');
           if (cpaCredits > 0) {
-            const cpaCourseNumber = extractField(row, ['CPA Course Number', 'CPA_Course_Number'], 'CPA course number', rowIndex) || '';
+            const cpaCourseNumber = findFieldByPartialName(row, 'cpa_course_number') || findFieldByPartialName(row, 'cpa_course') || '';
             credits.push({
               credit_type: 'CPA',
               amount: cpaCredits,
@@ -336,9 +387,15 @@ export async function POST(request: NextRequest) {
           }
           
           // CFP Credits
-          const cfpCredits = parseFloat(extractField(row, ['CFP Credits', 'CFP_Credits'], 'CFP credits', rowIndex) || '0');
+          const cfpCredits = parseFloat(extractField(row, [
+            'CFP Credits', 
+            'CFP_Credits',
+            'CFP credits',
+            'cfp_credits',
+            'cfp credits'
+          ], 'CFP credits', rowIndex) || '0');
           if (cfpCredits > 0) {
-            const cfpCourseNumber = extractField(row, ['CFP Course Number', 'CFP_Course_Number'], 'CFP course number', rowIndex) || '';
+            const cfpCourseNumber = findFieldByPartialName(row, 'cfp_course_number') || findFieldByPartialName(row, 'cfp_course') || '';
             credits.push({
               credit_type: 'CFP',
               amount: cfpCredits,
@@ -348,31 +405,38 @@ export async function POST(request: NextRequest) {
           }
           
           // EA/OTRP Credits
-          const eaOtrpCredits = parseFloat(extractField(row, ['EA / OTRP Credits', 'EA/OTRP Credits', 'EA_/_OTRP_Credits', 'EA/OTRP_Credits'], 'EA/OTRP credits', rowIndex) || '0');
+          const eaOtrpCredits = parseFloat(extractField(row, [
+            'EA / OTRP Credits', 
+            'EA/OTRP Credits', 
+            'EA_/_OTRP_Credits', 
+            'EA/OTRP_Credits',
+            'EA/OTRP credits',
+            'ea_otrp_credits',
+            'ea otrp credits'
+          ], 'EA/OTRP credits', rowIndex) || '0');
           if (eaOtrpCredits > 0) {
-            const eaOtrpCourseNumber = extractField(row, ['EA / OTRP Course Number', 'EA/OTRP Course Number', 'EA_/_OTRP_Course_Number', 'EA/OTRP_Course_Number'], 'EA/OTRP course number', rowIndex) || '';
+            const eaOtrpCourseNumber = findFieldByPartialName(row, 'ea_otrp_course_number') || findFieldByPartialName(row, 'ea_otrp_course') || '';
             
-            // Add as separate EA and OTRP credits with the same amount and course number
+            // Add as a single EA/OTRP credit type
             credits.push({
-              credit_type: 'EA',
+              credit_type: 'EA/OTRP',
               amount: eaOtrpCredits,
               course_number: eaOtrpCourseNumber
             });
             
-            credits.push({
-              credit_type: 'OTRP',
-              amount: eaOtrpCredits,
-              course_number: eaOtrpCourseNumber
-            });
-            
-            console.log(`Row ${rowIndex + 1}: Added EA credits: ${eaOtrpCredits}, course number: ${eaOtrpCourseNumber || 'none'}`);
-            console.log(`Row ${rowIndex + 1}: Added OTRP credits: ${eaOtrpCredits}, course number: ${eaOtrpCourseNumber || 'none'}`);
+            console.log(`Row ${rowIndex + 1}: Added EA/OTRP credits: ${eaOtrpCredits}, course number: ${eaOtrpCourseNumber || 'none'}`);
           }
           
           // ERPA Credits
-          const erpaCredits = parseFloat(extractField(row, ['ERPA Credits', 'ERPA_Credits'], 'ERPA credits', rowIndex) || '0');
+          const erpaCredits = parseFloat(extractField(row, [
+            'ERPA Credits', 
+            'ERPA_Credits',
+            'ERPA credits',
+            'erpa_credits',
+            'erpa credits'
+          ], 'ERPA credits', rowIndex) || '0');
           if (erpaCredits > 0) {
-            const erpaCourseNumber = extractField(row, ['ERPA Course Number', 'ERPA_Course_Number'], 'ERPA course number', rowIndex) || '';
+            const erpaCourseNumber = findFieldByPartialName(row, 'erpa_course_number') || findFieldByPartialName(row, 'erpa_course') || '';
             credits.push({
               credit_type: 'ERPA',
               amount: erpaCredits,
@@ -382,9 +446,15 @@ export async function POST(request: NextRequest) {
           }
           
           // CDFA Credits
-          const cdfaCredits = parseFloat(extractField(row, ['CDFA Credits', 'CDFA_Credits'], 'CDFA credits', rowIndex) || '0');
+          const cdfaCredits = parseFloat(extractField(row, [
+            'CDFA Credits', 
+            'CDFA_Credits',
+            'CDFA credits',
+            'cdfa_credits',
+            'cdfa credits'
+          ], 'CDFA credits', rowIndex) || '0');
           if (cdfaCredits > 0) {
-            const cdfaCourseNumber = extractField(row, ['CDFA Course Number', 'CDFA_Course_Number'], 'CDFA course number', rowIndex) || '';
+            const cdfaCourseNumber = findFieldByPartialName(row, 'cdfa_course_number') || findFieldByPartialName(row, 'cdfa_course') || '';
             credits.push({
               credit_type: 'CDFA',
               amount: cdfaCredits,
@@ -415,6 +485,15 @@ export async function POST(request: NextRequest) {
             credits: credits.map(c => `${c.credit_type}:${c.amount}:${c.course_number || 'no-number'}`).join(', '),
             states: states.map(s => s.state_code).join(', ') || '(none)'
           });
+          
+          // Add this after extracting the SKU but before creating the course
+          if (sku) {
+            const exists = await checkExistingSku(sku);
+            if (exists) {
+              console.log(`Row ${rowIndex + 1}: SKU ${sku} already exists, skipping`);
+              continue;
+            }
+          }
           
           // Create the course in the database
           try {
