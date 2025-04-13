@@ -80,10 +80,26 @@ export default function CourseForm({ params }: PageParams) {
       const response = await fetch(`/api/courses/${id}`);
       if (!response.ok) throw new Error('Failed to fetch course');
       const data = await response.json();
-      setCourse({
+      
+      // Ensure all string fields have a value (empty string if null)
+      const sanitizedData = {
         ...data,
+        // Replace nulls with empty strings for string fields
+        sku: data.sku || '',
+        title: data.title || '',
+        description: data.description || '',
+        main_subject: data.main_subject || '',
+        author: data.author || '',
+        table_of_contents_url: data.table_of_contents_url || '',
+        course_content_url: data.course_content_url || '',
+        // Ensure arrays are initialized
+        formats: Array.isArray(data.formats) ? data.formats : [],
+        credits: Array.isArray(data.credits) ? data.credits : [],
+        states: Array.isArray(data.states) ? data.states : [],
         id: data.id // Keep the ID for the exams component
-      });
+      };
+      
+      setCourse(sanitizedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -286,7 +302,7 @@ export default function CourseForm({ params }: PageParams) {
               type="text"
               id="sku"
               name="sku"
-              value={course.sku}
+              value={course.sku || ''}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               required
@@ -299,7 +315,7 @@ export default function CourseForm({ params }: PageParams) {
               type="text"
               id="title"
               name="title"
-              value={course.title}
+              value={course.title || ''}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               required
@@ -311,7 +327,7 @@ export default function CourseForm({ params }: PageParams) {
             <textarea
               id="description"
               name="description"
-              value={course.description}
+              value={course.description || ''}
               onChange={handleChange}
               rows={3}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
@@ -324,7 +340,7 @@ export default function CourseForm({ params }: PageParams) {
               type="text"
               id="main_subject"
               name="main_subject"
-              value={course.main_subject}
+              value={course.main_subject || ''}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
@@ -336,7 +352,7 @@ export default function CourseForm({ params }: PageParams) {
               type="text"
               id="author"
               name="author"
-              value={course.author}
+              value={course.author || ''}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
@@ -368,7 +384,7 @@ export default function CourseForm({ params }: PageParams) {
             <input 
               type="hidden" 
               name="table_of_contents_url" 
-              value={course.table_of_contents_url} 
+              value={course.table_of_contents_url || ''} 
             />
           </div>
 
@@ -398,7 +414,7 @@ export default function CourseForm({ params }: PageParams) {
             <input 
               type="hidden" 
               name="course_content_url" 
-              value={course.course_content_url} 
+              value={course.course_content_url || ''} 
             />
           </div>
 
@@ -407,7 +423,7 @@ export default function CourseForm({ params }: PageParams) {
             {course.formats.map((format, index) => (
               <div key={index} className="flex gap-4 mt-2">
                 <select
-                  value={format.format}
+                  value={format.format || ''}
                   onChange={(e) => updateFormat(index, 'format', e.target.value)}
                   className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 >
@@ -420,7 +436,7 @@ export default function CourseForm({ params }: PageParams) {
                 </select>
                 <input
                   type="number"
-                  value={format.price}
+                  value={format.price || 0}
                   onChange={(e) => updateFormat(index, 'price', parseFloat(e.target.value))}
                   placeholder="Price"
                   className="w-32 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
@@ -451,7 +467,7 @@ export default function CourseForm({ params }: PageParams) {
             {course.credits.map((credit, index) => (
               <div key={index} className="flex gap-4 mt-2">
                 <select
-                  value={credit.credit_type}
+                  value={credit.credit_type || ''}
                   onChange={(e) => updateCredit(index, 'credit_type', e.target.value)}
                   className="w-1/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 >
@@ -464,7 +480,7 @@ export default function CourseForm({ params }: PageParams) {
                 </select>
                 <input
                   type="number"
-                  value={credit.amount}
+                  value={credit.amount || 0}
                   onChange={(e) => updateCredit(index, 'amount', parseFloat(e.target.value))}
                   placeholder="Amount"
                   className="w-1/4 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
@@ -500,7 +516,7 @@ export default function CourseForm({ params }: PageParams) {
               <div key={index} className="flex gap-4 mt-2">
                 <input
                   type="text"
-                  value={stateObj.state_code}
+                  value={stateObj.state_code || ''}
                   onChange={(e) => updateState(index, e.target.value)}
                   placeholder="State Code"
                   className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
