@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   useEffect(() => {
     setMounted(true);
@@ -24,13 +25,12 @@ export default function LoginPage() {
     emailRef.current?.focus();
     
     // Check URL parameters for success/error messages
-    const params = new URLSearchParams(window.location.search);
-    const urlError = params.get('error');
-    const urlSuccess = params.get('success');
+    const urlError = searchParams.get('error');
+    const urlSuccess = searchParams.get('success');
     
     if (urlError) setError(decodeURIComponent(urlError));
     if (urlSuccess) setSuccess(decodeURIComponent(urlSuccess));
-  }, []);
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -44,6 +44,7 @@ export default function LoginPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const rememberMe = formData.get('remember-me') === 'on';
+    const redirectTo = searchParams.get('redirect') || '/dashboard';
 
     // Basic client-side validation
     if (!email || !email.includes('@')) {
@@ -70,7 +71,7 @@ export default function LoginPage() {
         setError(result.error.message || 'An error occurred during login');
       } else {
         setSuccess('Login successful! Redirecting...');
-        router.push('/dashboard');
+        router.push(redirectTo);
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');

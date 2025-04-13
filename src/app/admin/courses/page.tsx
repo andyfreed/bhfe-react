@@ -165,12 +165,35 @@ export default function CoursesPage() {
   useEffect(() => {
     async function fetchCourses() {
       try {
+        setLoading(true);
         const response = await fetch('/api/courses');
-        if (!response.ok) throw new Error('Failed to fetch courses');
+        
+        if (!response.ok) {
+          // Try to get error details from response
+          let errorMessage = 'Failed to fetch courses';
+          try {
+            const errorData = await response.json();
+            if (errorData && errorData.error) {
+              errorMessage = errorData.error;
+            }
+          } catch (parseError) {
+            // If we can't parse the error, just use the status text
+            errorMessage = `Failed to fetch courses: ${response.statusText}`;
+          }
+          throw new Error(errorMessage);
+        }
+        
         const data = await response.json();
+        
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response format: expected an array of courses');
+        }
+        
         setCourses(data);
       } catch (error) {
         console.error('Error fetching courses:', error);
+        // Set error state here if needed
+        setCourses([]); // Empty the courses array to prevent displaying stale data
       } finally {
         setLoading(false);
       }

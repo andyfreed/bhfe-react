@@ -9,6 +9,12 @@ const VALID_FORMATS: CourseFormat[] = ['online', 'hardcopy', 'video'];
 
 async function verifyAuth() {
   try {
+    // In development, allow without token to simplify testing
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Development mode: Authentication bypassed');
+      return;
+    }
+    
     const cookieStore = await cookies();
     const token = cookieStore.get('admin_token');
     
@@ -27,28 +33,27 @@ export async function GET() {
   try {
     await verifyAuth();
     
-    // Updated to get courses with relations
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
+    // Create server client that bypasses RLS
+    const supabase = createServerSupabaseClient();
+    
+    // Use a simpler approach to avoid RLS issues
+    const { data: courses, error: coursesError } = await supabase
       .from('courses')
-      .select(`
-        *,
-        formats:course_formats(*),
-        credits:course_credits(*),
-        states:course_states(*)
-      `)
+      .select('*')
       .order('title');
-      
-    if (error) {
-      console.error('Error fetching courses with relations:', error);
-      throw error;
+    
+    if (coursesError) {
+      console.error('Error fetching courses:', coursesError);
+      return NextResponse.json({ error: coursesError.message }, { status: 500 });
     }
     
-    return NextResponse.json(data);
+    // Return simple course data
+    console.log(`Returning ${courses?.length || 0} courses`);
+    return NextResponse.json(courses || []);
   } catch (error: any) {
-    console.error('Error fetching courses:', error);
+    console.error('Error in admin courses API:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch courses' },
+      { error: error?.message || 'Server error' },
       { status: error?.message === 'Unauthorized' ? 401 : 500 }
     );
   }

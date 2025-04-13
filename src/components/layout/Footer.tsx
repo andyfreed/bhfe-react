@@ -30,6 +30,7 @@ const Footer = () => {
                   height={50}
                   alt="National Association of State Boards of Accountancy (NASBA) Logo"
                   className="mt-1"
+                  style={{ width: 'auto', height: '50px' }}
                 />
                 <span>
                   Beacon Hill Financial Educators, Inc. is registered with the National Association of State Boards of Accountancy (NASBA) as a sponsor of continuing professional education on the National Registry of CPE Sponsors. State boards of accountancy have final authority on the acceptance of individual courses for CPE credit. Complaints regarding registered sponsors may be submitted to the National Registry of CPE Sponsors through its website: <a href="https://www.nasbaregistry.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.nasbaregistry.org</a>

@@ -201,7 +201,7 @@ const Header = () => {
               {!isLoggedIn && !isInAdmin && (
                 <li>
                   <Link 
-                    href="/admin/login" 
+                    href="/login?redirect=/admin" 
                     className="text-gray-500 hover:text-gray-700 text-sm"
                   >
                     Admin
@@ -298,7 +298,7 @@ const Header = () => {
                 {!isLoggedIn && !isInAdmin && (
                   <li className="border-t border-gray-100 pt-3 mt-3">
                     <Link 
-                      href="/admin/login" 
+                      href="/login?redirect=/admin" 
                       className="block text-gray-500 hover:text-gray-700 text-sm"
                     >
                       Admin

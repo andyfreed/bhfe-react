@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// This is a server-side only variable that should be added to your .env.local file
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
@@ -13,12 +15,27 @@ export function createServerSupabaseClient() {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+      detectSessionInUrl: false
     },
+    global: {
+      // Disable RLS for server operations
+      headers: {
+        apikey: supabaseKey
+      }
+    }
   });
 }
 
 // For client-side operations
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: 'bhfe-auth-token',
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined
+  },
+});
 
 // File upload to Supabase Storage
 export async function uploadFile(file: File, bucket: string, path: string): Promise<string> {

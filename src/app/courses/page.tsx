@@ -74,6 +74,7 @@ export default function CoursesPage() {
   const loadCourses = async () => {
     try {
       setIsLoading(true);
+      setError(null); // Clear any previous errors
       
       // Build query string with filter parameters
       const params = new URLSearchParams();
@@ -102,13 +103,24 @@ export default function CoursesPage() {
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch courses');
+        // Try to extract error details from response
+        let errorMessage = 'Failed to fetch courses';
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (parseError) {
+          // If we can't parse JSON, use status text
+          errorMessage = `Failed to fetch courses: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
       
       if (!data || !Array.isArray(data)) {
-        throw new Error('Invalid response format');
+        throw new Error('Invalid response format from server');
       }
       
       console.log(`Loaded ${data.length} courses from API`);
@@ -116,7 +128,14 @@ export default function CoursesPage() {
       setCourses(adaptedCourses);
     } catch (err) {
       console.error('Error loading courses:', err);
-      setError('Failed to load courses. Please try again later.');
+      let errorMessage = 'Failed to load courses. Please try again later.';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      setCourses([]); // Clear courses to prevent showing stale data
     } finally {
       setIsLoading(false);
     }
