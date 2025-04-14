@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         console.log('Client auth check:', { 
           hasUser: !!user, 
           userEmail: user?.email,
-          userError 
+          userError
         });
 
         if (userError || !user) {

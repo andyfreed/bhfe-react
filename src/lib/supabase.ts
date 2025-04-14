@@ -1,86 +1,167 @@
 import { createClient } from '@supabase/supabase-js';
+import { isDevelopment, isMockAuthEnabled, hasValidSupabaseCredentials, logDevEnvironmentStatus } from './devUtils';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-// This is a server-side only variable that should be added to your .env.local file
+// Get the Supabase URL and key from environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+// Determine if we should use mock mode
+const useMockClient = isDevelopment && (isMockAuthEnabled || !hasValidSupabaseCredentials());
+
+// Log environment status during development
+if (isDevelopment) {
+  logDevEnvironmentStatus();
 }
+
+// Create a mock client for development mode
+function createMockClient() {
+  return {
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: null }),
+      signUp: () => Promise.resolve({ data: null, error: null }),
+      signOut: () => Promise.resolve({ error: null }),
+      resetPasswordForEmail: () => Promise.resolve({ data: null, error: null }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: null }),
+          order: () => ({
+            range: () => Promise.resolve({ data: [], error: null }),
+          }),
+        }),
+        order: () => ({
+          range: () => Promise.resolve({ data: [], error: null }),
+        }),
+      }),
+      insert: () => Promise.resolve({ data: null, error: null }),
+      update: () => ({
+        eq: () => Promise.resolve({ data: null, error: null }),
+      }),
+      delete: () => ({
+        eq: () => Promise.resolve({ data: null, error: null }),
+      }),
+    }),
+    storage: {
+      from: () => ({
+        upload: () => Promise.resolve({ data: { path: 'mock-path' }, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: 'https://mock-storage-url.com/mock-image.jpg' } }),
+      }),
+    },
+  };
+}
+
+// Create the Supabase client
+export const supabase = useMockClient 
+  ? createMockClient() 
+  : createClient(supabaseUrl, supabaseKey);
 
 // For server-side operations
 export function createServerSupabaseClient() {
-  return createClient(supabaseUrl, supabaseKey, {
+  if (useMockClient) {
+    return createMockClient();
+  }
+  return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
     },
-    global: {
-      // Disable RLS for server operations
-      headers: {
-        apikey: supabaseKey
-      }
-    }
   });
 }
 
-// For client-side operations
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'bhfe-auth-token',
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined
-  },
-});
-
-// File upload to Supabase Storage
-export async function uploadFile(file: File, bucket: string, path: string): Promise<string> {
+// Upload a file to Supabase Storage
+export async function uploadFile(file: File, bucket: string, path: string = '') {
   try {
-    const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
-      cacheControl: '3600',
-      upsert: true
+    if (useMockClient) {
+      console.log('🔧 MOCK: File upload simulation for', { file: file.name, bucket, path });
+      return {
+        data: {
+          path: 'mock-path',
+          publicUrl: `https://mock-storage-url.com/${path || ''}${file.name}`,
+        },
+        error: null,
+      };
+    }
+
+    const filePath = path ? `${path}/${file.name}` : file.name;
+    const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+      upsert: true,
     });
 
     if (error) {
       console.error('Error uploading file:', error);
-      throw error;
+      return { data: null, error };
     }
 
-    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
-    return urlData.publicUrl;
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
+
+    return {
+      data: {
+        ...data,
+        publicUrl: publicUrlData.publicUrl,
+      },
+      error: null,
+    };
   } catch (error) {
-    console.error('Error in uploadFile:', error);
-    throw error;
+    console.error('Unexpected error during file upload:', error);
+    return {
+      data: null,
+      error: {
+        message: 'An unexpected error occurred during file upload',
+      },
+    };
   }
 }
 
-// File upload for server-side operations
+// Upload a file from server to Supabase Storage
 export async function uploadFileFromServer(
-  file: Blob,
+  fileBuffer: Buffer,
+  fileName: string,
   bucket: string,
-  path: string
-): Promise<string> {
-  const client = createServerSupabaseClient();
-
+  path: string = ''
+) {
   try {
-    const { data, error } = await client.storage.from(bucket).upload(path, file, {
-      cacheControl: '3600',
-      upsert: true
+    if (useMockClient) {
+      console.log('🔧 MOCK: Server file upload simulation for', { fileName, bucket, path });
+      return {
+        data: {
+          path: 'mock-path',
+          publicUrl: `https://mock-storage-url.com/${path || ''}${fileName}`,
+        },
+        error: null,
+      };
+    }
+
+    const client = createServerSupabaseClient();
+    const filePath = path ? `${path}/${fileName}` : fileName;
+    
+    const { data, error } = await client.storage.from(bucket).upload(filePath, fileBuffer, {
+      upsert: true,
     });
 
     if (error) {
       console.error('Error uploading file from server:', error);
-      throw error;
+      return { data: null, error };
     }
 
-    const { data: urlData } = client.storage.from(bucket).getPublicUrl(data.path);
-    return urlData.publicUrl;
+    const { data: publicUrlData } = client.storage.from(bucket).getPublicUrl(data.path);
+
+    return {
+      data: {
+        ...data,
+        publicUrl: publicUrlData.publicUrl,
+      },
+      error: null,
+    };
   } catch (error) {
-    console.error('Error in uploadFileFromServer:', error);
-    throw error;
+    console.error('Unexpected error during file upload from server:', error);
+    return {
+      data: null,
+      error: {
+        message: 'An unexpected error occurred during file upload from server',
+      },
+    };
   }
 } 

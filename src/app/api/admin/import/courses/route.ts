@@ -405,19 +405,11 @@ export async function POST(request: NextRequest) {
           }
           
           // EA/OTRP Credits
-          const eaOtrpCredits = parseFloat(extractField(row, [
-            'EA / OTRP Credits', 
-            'EA/OTRP Credits', 
-            'EA_/_OTRP_Credits', 
-            'EA/OTRP_Credits',
-            'EA/OTRP credits',
-            'ea_otrp_credits',
-            'ea otrp credits'
-          ], 'EA/OTRP credits', rowIndex) || '0');
+          const eaOtrpCredits = parseFloat(extractField(row, ['EA / OTRP Credits', 'EA/OTRP Credits', 'EA_/_OTRP_Credits', 'EA/OTRP_Credits'], 'EA/OTRP credits', rowIndex) || '0');
           if (eaOtrpCredits > 0) {
-            const eaOtrpCourseNumber = findFieldByPartialName(row, 'ea_otrp_course_number') || findFieldByPartialName(row, 'ea_otrp_course') || '';
+            const eaOtrpCourseNumber = extractField(row, ['EA / OTRP Course Number', 'EA/OTRP Course Number', 'EA_/_OTRP_Course_Number', 'EA/OTRP_Course_Number'], 'EA/OTRP course number', rowIndex) || '';
             
-            // Add as a single EA/OTRP credit type
+            // Add as a single EA/OTRP credit
             credits.push({
               credit_type: 'EA/OTRP',
               amount: eaOtrpCredits,

@@ -1,5 +1,5 @@
 export type CourseFormat = 'online' | 'hardcopy' | 'video';
-export type CreditType = 'CPA' | 'CFP' | 'CDFA' | 'EA' | 'OTRP' | 'ERPA';
+export type CreditType = 'CPA' | 'CFP' | 'CDFA' | 'EA' | 'OTRP' | 'EA/OTRP' | 'ERPA';
 
 // Exam related types
 export interface ExamQuestion {

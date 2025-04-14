@@ -140,3 +140,41 @@ Common issues:
    - Try logging out and back in
 
 For more help, please submit an issue on GitHub.
+
+# Cross-Computer Development Setup
+
+When working on this project across multiple computers, you can use the following approaches to avoid authentication errors:
+
+## Option 1: Use the Setup Script
+
+We've included a setup script that makes it easy to configure your development environment:
+
+```bash
+# Run the setup script
+npm run setup-dev
+```
+
+This script will guide you through setting up your environment and gives you two options:
+1. Configure real Supabase credentials
+2. Enable mock authentication (no real backend needed)
+
+## Option 2: Manual Configuration
+
+### Using Real Supabase Credentials
+To use real Supabase credentials, ensure your `.env.local` file has the following variables:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_actual_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_actual_anon_key
+NEXT_PUBLIC_USE_MOCK_AUTH=false
+```
+
+### Using Mock Authentication
+For development without real Supabase credentials, you can enable mock authentication:
+```
+# In .env.local
+NEXT_PUBLIC_USE_MOCK_AUTH=true
+```
+
+When mock authentication is enabled, you can login with:
+- Email: test@example.com
+- Password: password123

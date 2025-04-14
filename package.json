@@ -2,12 +2,14 @@
   "name": "bhfe-react",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "npx next dev",
     "build": "npx next build",
     "start": "npx next start",
     "lint": "npx next lint",
-    "setup-db": "node src/scripts/setup-db.js"
+    "setup-db": "node src/scripts/setup-db.js",
+    "setup-dev": "node setup-dev.js"
   },
   "dependencies": {
     "@stripe/stripe-js": "^7.0.0",

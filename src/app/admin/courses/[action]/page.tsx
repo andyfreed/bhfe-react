@@ -30,7 +30,7 @@ const initialCourseState: Omit<Course, 'id' | 'created_at'> & {
 const VALID_FORMATS: CourseFormat[] = ['online', 'hardcopy', 'video'];
 
 // Valid credit types
-const VALID_CREDIT_TYPES = ['CPA', 'CFP', 'CDFA', 'EA', 'OTRP', 'ERPA'];
+const VALID_CREDIT_TYPES = ['CPA', 'CFP', 'CDFA', 'EA/OTRP', 'ERPA'];
 
 type TabType = 'details' | 'exams';
 

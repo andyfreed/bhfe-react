@@ -61,11 +61,7 @@ export default function LoginPage() {
     }
 
     try {
-      const result = await login({
-        email,
-        password,
-        rememberMe,
-      });
+      const result = await login(email, password);
 
       if (result.error) {
         setError(result.error.message || 'An error occurred during login');
