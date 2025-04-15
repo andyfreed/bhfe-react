@@ -2,7 +2,7 @@ export type CourseType = 'CFP' | 'CPA' | 'IRS' | 'OTHER';
 
 export type CourseFormat = 'online' | 'hardcopy' | 'video';
 
-export type CreditType = 'CPA' | 'CFP' | 'CDFA' | 'EA' | 'OTRP' | 'ERPA';
+export type CreditType = 'CPA' | 'CFP' | 'CDFA' | 'EA' | 'OTRP' | 'EA/OTRP' | 'ERPA';
 
 export interface CourseCredit {
   type: CreditType;
@@ -41,6 +41,30 @@ export interface Course {
   subject?: string;
   mainSubject?: string;
   creditsByType?: Record<string, number>;  // Map of credit type to amount
+  formats?: Array<{format: string, price: number}>;
+  formatPrices?: Record<string, number>;
+}
+
+// Enhanced course with additional properties for display
+export interface EnhancedCourse {
+  id: string;
+  title: string;
+  description: string;
+  type: CourseType[];
+  price: number;
+  duration: string;
+  credits: number;
+  slug: string;
+  features: string[];
+  objectives: string[];
+  instructor: {
+    name: string;
+    bio: string;
+    image: string;
+  };
+  image?: string;
+  creditsByType?: Record<string, number>;
+  formatPrices: Record<string, number>;
 }
 
 // Full database course model (for future use)

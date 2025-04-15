@@ -13,6 +13,8 @@ export function useAdminCheck() {
         // First check if the admin cookie is set
         if (hasAdminCookie()) {
           setIsAdmin(true);
+          // Refresh the token whenever we verify it to extend session duration
+          setAdminToken();
           setIsLoading(false);
           return;
         }

@@ -1,7 +1,7 @@
 'use client';
 import { Course } from '@/types/course';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { sanitizeText } from '@/utils/text';
 
 interface CourseCardProps {
@@ -15,6 +15,24 @@ export default function CourseCard({ course, featured = false }: CourseCardProps
   // Sanitize the course title
   const sanitizedTitle = sanitizeText(course.title);
   
+  // Process formats if they exist
+  const formatPrices = useMemo(() => {
+    if (course.formatPrices && Object.keys(course.formatPrices).length > 0) {
+      return course.formatPrices;
+    }
+    
+    // If no formatPrices but we have formats array, convert it
+    if (course.formats && course.formats.length > 0) {
+      const prices: Record<string, number> = {};
+      course.formats.forEach(format => {
+        prices[format.format] = format.price;
+      });
+      return prices;
+    }
+    
+    return {};
+  }, [course.formatPrices, course.formats]);
+  
   return (
     <div 
       className={`backdrop-blur-sm bg-gradient-to-br from-slate-50/95 to-white/95 rounded-2xl overflow-hidden border border-neutral-200/50 h-full flex flex-col group transition-all duration-300 ${
@@ -24,8 +42,9 @@ export default function CourseCard({ course, featured = false }: CourseCardProps
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="p-6 flex flex-col flex-grow relative">
-        {/* Price tag */}
+        {/* Price tag - now shows lowest price with "from" text */}
         <div className="absolute -right-2 top-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white px-4 py-2 rounded-l-full shadow-lg transform group-hover:scale-105 transition-transform">
+          <span className="text-xs block -mt-1">from</span>
           <span className="text-xl font-bold">
             ${course.price.toFixed(2)}
           </span>
@@ -40,6 +59,23 @@ export default function CourseCard({ course, featured = false }: CourseCardProps
             <span className="w-2 h-2 rounded-full bg-blue-600 mr-2"></span>
             {sanitizeText(course.subject)}
           </p>
+        )}
+        
+        {/* Format prices section */}
+        {Object.keys(formatPrices).length > 0 && (
+          <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
+            <h4 className="text-sm font-semibold mb-3 text-slate-700">
+              Available Formats
+            </h4>
+            <div className="grid grid-cols-1 gap-2">
+              {Object.entries(formatPrices).map(([format, price]) => (
+                <div key={format} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200">
+                  <span className="text-sm font-medium text-slate-700 capitalize">{format}</span>
+                  <span className="text-sm font-bold text-blue-600">${typeof price === 'number' ? price.toFixed(2) : price}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
         
         {/* Credits section with modern design */}

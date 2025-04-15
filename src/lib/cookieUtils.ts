@@ -79,8 +79,9 @@ export function hasAdminCookie(): boolean {
 export function setAdminToken(): void {
   setCookie('admin_token', 'temporary-token', {
     path: '/',
-    maxAge: 3600, // 1 hour
-    sameSite: 'strict'
+    maxAge: 3600 * 24, // 24 hours instead of 1 hour
+    sameSite: 'lax', // Use 'lax' instead of 'strict' to allow the cookie to be sent when navigating to the site from an external link
+    secure: process.env.NODE_ENV === 'production'
   });
 }
 

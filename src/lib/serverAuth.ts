@@ -21,10 +21,11 @@ export async function validateAdmin(): Promise<boolean> {
  * Set admin token directly
  */
 export function setDirectAdminToken(): void {
-  cookies().set('admin_token', 'temporary-token', {
+  const cookieStore = cookies();
+  cookieStore.set('admin_token', 'temporary-token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: 3600 * 24, // 24 hours
     path: '/'
   });

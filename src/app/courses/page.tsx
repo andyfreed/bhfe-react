@@ -35,6 +35,14 @@ const adaptCourse = (course: CourseWithRelations): Course => {
     });
   }
   
+  // Organize formats by type with prices
+  const formatPrices: Record<string, number> = {};
+  if (course.formats && course.formats.length > 0) {
+    course.formats.forEach(format => {
+      formatPrices[format.format] = format.price;
+    });
+  }
+  
   return {
     id: course.id,
     title: sanitizeText(course.title),
@@ -53,7 +61,9 @@ const adaptCourse = (course: CourseWithRelations): Course => {
     },
     subject: sanitizeText(course.main_subject),
     mainSubject: sanitizeText(course.main_subject),
-    creditsByType: creditsByType
+    creditsByType: creditsByType,
+    formats: course.formats,
+    formatPrices: formatPrices
   };
 };
 
@@ -119,12 +129,16 @@ export default function CoursesPage() {
       
       const data = await response.json();
       
-      if (!data || !Array.isArray(data)) {
+      if (!data) {
         throw new Error('Invalid response format from server');
       }
       
-      console.log(`Loaded ${data.length} courses from API`);
-      const adaptedCourses = data.map(adaptCourse);
+      // Check if the data is an array (direct courses array)
+      // or has a courses property (wrapped in object)
+      const coursesData = Array.isArray(data) ? data : data.courses || [];
+      
+      console.log(`Loaded ${coursesData.length} courses from API`);
+      const adaptedCourses = coursesData.map(adaptCourse);
       setCourses(adaptedCourses);
     } catch (err) {
       console.error('Error loading courses:', err);
