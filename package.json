@@ -9,7 +9,9 @@
     "start": "npx next start",
     "lint": "npx next lint",
     "setup-db": "node src/scripts/setup-db.js",
-    "setup-dev": "node setup-dev.js"
+    "setup-dev": "node setup-dev.js",
+    "migrate": "node src/scripts/run-migration.js",
+    "add-eaotrp": "node src/scripts/add-eaotrp-enum.js"
   },
   "dependencies": {
     "@stripe/stripe-js": "^7.0.0",
@@ -38,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

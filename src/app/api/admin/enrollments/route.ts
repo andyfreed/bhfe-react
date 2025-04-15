@@ -36,17 +36,30 @@ export async function GET(request: NextRequest) {
     
     const supabase = createServerSupabaseClient();
     
-    // Note: We're bypassing auth checks for now since we're using client-side localStorage auth
+    // First, check if the user_enrollments table exists
+    const { data: tableExists, error: tableCheckError } = await supabase
+      .from('user_enrollments')
+      .select('id')
+      .limit(1);
+      
+    if (tableCheckError) {
+      console.error('Table check error:', tableCheckError);
+      return NextResponse.json({
+        error: 'Failed to access user_enrollments table',
+        details: tableCheckError,
+        enrollments: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      }, { status: 500 });
+    }
     
+    // Now fetch the enrollments with proper error handling
     let query = supabase
       .from('user_enrollments')
       .select(`
         *,
         user:user_id (id, email),
         course:course_id (id, title, main_subject, description)
-      `, { count: 'exact' })
-      .order('enrolled_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      `, { count: 'exact' });
     
     if (userId) {
       query = query.eq('user_id', userId);
@@ -55,6 +68,10 @@ export async function GET(request: NextRequest) {
     if (courseId) {
       query = query.eq('course_id', courseId);
     }
+    
+    // Apply ordering and pagination
+    query = query.order('enrolled_at', { ascending: false })
+      .range(offset, offset + limit - 1);
     
     const { data, error, count } = await query;
     
@@ -68,6 +85,7 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
+    // Return the data with proper structure
     return NextResponse.json({
       enrollments: data || [],
       pagination: {

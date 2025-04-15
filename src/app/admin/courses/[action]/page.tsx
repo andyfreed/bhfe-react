@@ -462,7 +462,7 @@ export default function CourseForm({ params }: PageParams) {
           <div>
             <label className="block text-sm font-medium text-gray-700">Credits</label>
             <p className="text-xs text-gray-500 mb-2">
-              Note: EA and OTRP are separate credit types. If a course has both EA/OTRP credits, please add them as separate entries.
+              Add credit types with their corresponding amounts and course numbers.
             </p>
             {course.credits.map((credit, index) => (
               <div key={index} className="flex gap-4 mt-2">

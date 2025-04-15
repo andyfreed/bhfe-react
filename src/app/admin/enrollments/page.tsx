@@ -1,7 +1,5 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 interface User {
@@ -26,7 +24,6 @@ interface Enrollment {
   enrollment_notes?: string;
   user: User;
   course: Course;
-  admin?: User;
 }
 
 export default function AdminEnrollmentsPage() {
@@ -41,34 +38,31 @@ export default function AdminEnrollmentsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Fetch enrollments, users, and courses on page load
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
       try {
-        // Fetch enrollments
-        const enrollmentsResponse = await fetch('/api/admin/enrollments');
-        if (!enrollmentsResponse.ok) {
-          throw new Error(`Error fetching enrollments: ${enrollmentsResponse.status}`);
-        }
-        const enrollmentsData = await enrollmentsResponse.json();
-        setEnrollments(enrollmentsData);
+        // Fetch enrollments with users and courses
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select('*, user:users(*), course:courses(*)');
 
-        // Fetch users from Supabase
+        if (enrollmentsError) throw enrollmentsError;
+        setEnrollments(enrollmentsData || []);
+
+        // Fetch users
         const { data: usersData, error: usersError } = await supabase
-          .from('auth.users')
-          .select('id, email')
-          .order('email');
-        
+          .from('users')
+          .select('id, email');
+
         if (usersError) throw usersError;
         setUsers(usersData || []);
 
-        // Fetch courses from Supabase
+        // Fetch courses
         const { data: coursesData, error: coursesError } = await supabase
           .from('courses')
-          .select('id, title, main_subject')
-          .order('title');
-        
+          .select('id, title, main_subject');
+
         if (coursesError) throw coursesError;
         setCourses(coursesData || []);
       } catch (error) {
@@ -82,7 +76,7 @@ export default function AdminEnrollmentsPage() {
     fetchData();
   }, []);
 
-  // Function to create a new enrollment
+  // Handle enrollment creation
   const handleCreateEnrollment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser || !selectedCourse) {
@@ -95,65 +89,56 @@ export default function AdminEnrollmentsPage() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch('/api/admin/enrollments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: selectedUser,
-          course_id: selectedCourse,
-          notes: enrollmentNotes,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create enrollment');
+      const newEnrollment = {
+        user_id: selectedUser,
+        course_id: selectedCourse,
+        progress: 0,
+        completed: false,
+        enrollment_type: 'admin',
+        enrollment_notes: enrollmentNotes || null,
+      };
+      
+      const { data, error } = await supabase
+        .from('enrollments')
+        .insert(newEnrollment)
+        .select('*, user:users(*), course:courses(*)');
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setEnrollments([...enrollments, data[0]]);
+        setSelectedUser('');
+        setSelectedCourse('');
+        setEnrollmentNotes('');
+        setSuccessMessage('Enrollment created successfully!');
       }
-
-      const newEnrollment = await response.json();
-
-      // Refresh enrollments list
-      const updatedEnrollmentsResponse = await fetch('/api/admin/enrollments');
-      const updatedEnrollments = await updatedEnrollmentsResponse.json();
-      setEnrollments(updatedEnrollments);
-
-      // Reset form
-      setSelectedUser('');
-      setSelectedCourse('');
-      setEnrollmentNotes('');
-      setSuccessMessage('Enrollment created successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating enrollment:', error);
-      setErrorMessage((error as Error).message || 'Failed to create enrollment');
+      setErrorMessage(error.message || 'Failed to create enrollment');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Function to delete an enrollment
+  // Handle enrollment deletion
   const handleDeleteEnrollment = async (enrollmentId: string) => {
     if (!confirm('Are you sure you want to remove this enrollment?')) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/admin/enrollments/${enrollmentId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete enrollment');
-      }
-
-      // Remove enrollment from state
+      const { error } = await supabase
+        .from('enrollments')
+        .delete()
+        .eq('id', enrollmentId);
+      
+      if (error) throw error;
+      
       setEnrollments(enrollments.filter(e => e.id !== enrollmentId));
       setSuccessMessage('Enrollment deleted successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting enrollment:', error);
-      setErrorMessage((error as Error).message || 'Failed to delete enrollment');
+      setErrorMessage(error.message || 'Failed to delete enrollment');
     }
   };
 
@@ -268,9 +253,9 @@ export default function AdminEnrollmentsPage() {
                     Enrolled On
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    Type
                   </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -279,30 +264,33 @@ export default function AdminEnrollmentsPage() {
                 {enrollments.map((enrollment) => (
                   <tr key={enrollment.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {enrollment.user?.email || 'Unknown User'}
+                      <div className="text-sm font-medium text-gray-900">{enrollment.user?.email || 'Unknown'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {enrollment.course?.title || 'Unknown Course'}
+                      <div className="text-sm text-gray-900">{enrollment.course?.title || 'Unknown'}</div>
+                      <div className="text-xs text-gray-500">{enrollment.course?.main_subject || ''}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1 max-w-[100px]">
-                        <div
-                          className="bg-indigo-600 h-2.5 rounded-full"
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div 
+                          className={`h-2.5 rounded-full ${enrollment.completed ? 'bg-green-600' : 'bg-blue-600'}`}
                           style={{ width: `${enrollment.progress}%` }}
                         ></div>
                       </div>
-                      <span className="text-xs text-gray-500">{enrollment.progress}%</span>
+                      <span className="text-xs text-gray-500 mt-1">
+                        {enrollment.progress}% {enrollment.completed && '(Completed)'}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(enrollment.enrolled_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        enrollment.completed
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                        enrollment.enrollment_type === 'self' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-blue-100 text-blue-800'
                       }`}>
-                        {enrollment.completed ? 'Completed' : 'In Progress'}
+                        {enrollment.enrollment_type === 'self' ? 'Self-enrolled' : 'Admin'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

@@ -9,7 +9,7 @@ const stripe = new Stripe(STRIPE_SECRET_KEY);
 
 export async function POST(request: Request) {
   try {
-    const { courseId } = await request.json();
+    const { courseId, format, price } = await request.json();
     
     // Fetch the course from the database with all relations
     const course = await getCourseWithRelations(courseId) as CourseWithRelations;
@@ -21,10 +21,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get the lowest price from formats
-    const lowestPrice = course.formats && course.formats.length > 0
-      ? Math.min(...course.formats.map((f) => f.price))
-      : 0;
+    // Determine price based on format or use lowest price as fallback
+    let finalPrice = 0;
+    let selectedFormat = '';
+    
+    if (format && price) {
+      // Use the selected format and price
+      finalPrice = price;
+      selectedFormat = format;
+    } else if (course.formats && course.formats.length > 0) {
+      // Fallback to lowest price from formats
+      finalPrice = Math.min(...course.formats.map((f) => f.price));
+      selectedFormat = course.formats.find(f => f.price === finalPrice)?.format || 'Default';
+    }
 
     // Format the title and description for Stripe
     const title = course.title || 'Course';
@@ -38,10 +47,10 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: title,
+              name: `${title} (${selectedFormat})`,
               description: description.substring(0, 500), // Limit description length for Stripe
             },
-            unit_amount: Math.round(lowestPrice * 100), // Convert to cents
+            unit_amount: Math.round(finalPrice * 100), // Convert to cents
           },
           quantity: 1,
         },
@@ -51,6 +60,7 @@ export async function POST(request: Request) {
       cancel_url: `${request.headers.get('origin')}/courses/${course.sku.toLowerCase().replace(/\s+/g, '-')}`,
       metadata: {
         courseId: course.id,
+        format: selectedFormat,
       },
     });
 

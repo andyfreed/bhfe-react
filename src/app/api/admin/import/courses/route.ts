@@ -404,12 +404,12 @@ export async function POST(request: NextRequest) {
             console.log(`Row ${rowIndex + 1}: Added CFP credits: ${cfpCredits}, course number: ${cfpCourseNumber || 'none'}`);
           }
           
-          // EA/OTRP Credits
+          // EA/OTRP Credits - Treat as a single credit type
           const eaOtrpCredits = parseFloat(extractField(row, ['EA / OTRP Credits', 'EA/OTRP Credits', 'EA_/_OTRP_Credits', 'EA/OTRP_Credits'], 'EA/OTRP credits', rowIndex) || '0');
           if (eaOtrpCredits > 0) {
             const eaOtrpCourseNumber = extractField(row, ['EA / OTRP Course Number', 'EA/OTRP Course Number', 'EA_/_OTRP_Course_Number', 'EA/OTRP_Course_Number'], 'EA/OTRP course number', rowIndex) || '';
             
-            // Add as a single EA/OTRP credit
+            // Add as a single EA/OTRP credit type
             credits.push({
               credit_type: 'EA/OTRP',
               amount: eaOtrpCredits,

@@ -1,32 +1,63 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { STRIPE_PUBLISHABLE_KEY } from '@/config/stripe';
 
-// Only initialize Stripe if the key exists
-const stripePromise = typeof STRIPE_PUBLISHABLE_KEY === 'string' && STRIPE_PUBLISHABLE_KEY 
-  ? loadStripe(STRIPE_PUBLISHABLE_KEY)
-  : null;
+// Initialize Stripe conditionally with error handling
+let stripePromise: Promise<any> | null = null;
+
+try {
+  if (typeof STRIPE_PUBLISHABLE_KEY === 'string' && STRIPE_PUBLISHABLE_KEY) {
+    stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY).catch(err => {
+      console.warn('Stripe could not be loaded:', err);
+      return null;
+    });
+  }
+} catch (error) {
+  console.warn('Error initializing Stripe:', error);
+  stripePromise = null;
+}
 
 interface CourseEnrollButtonProps {
   courseId: string;
+  selectedFormat?: string;
+  formatPrice?: number;
 }
 
-export function CourseEnrollButton({ courseId }: CourseEnrollButtonProps) {
+export function CourseEnrollButton({ 
+  courseId,
+  selectedFormat,
+  formatPrice
+}: CourseEnrollButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [currentFormat, setCurrentFormat] = useState(selectedFormat);
+  const [currentPrice, setCurrentPrice] = useState(formatPrice);
+  const [stripeError, setStripeError] = useState<string | null>(null);
+  
+  // Update local state when props change
+  useEffect(() => {
+    setCurrentFormat(selectedFormat);
+    setCurrentPrice(formatPrice);
+  }, [selectedFormat, formatPrice]);
 
   const handleEnrollClick = async () => {
+    // Check if there was a previous Stripe error
+    if (stripeError) {
+      alert(`Payment system is currently unavailable (${stripeError}). Please try again later or contact support.`);
+      return;
+    }
+    
     // Only proceed if Stripe is available
     if (!stripePromise) {
-      console.error('Stripe configuration is missing');
-      alert('Payment system is not configured. Please try again later.');
+      setStripeError('Payment system not configured');
+      alert('Payment system is not available. Please try again later or contact support.');
       return;
     }
     
     try {
       setIsLoading(true);
       
-      // Create Stripe checkout session
+      // Create checkout session
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
@@ -34,6 +65,8 @@ export function CourseEnrollButton({ courseId }: CourseEnrollButtonProps) {
         },
         body: JSON.stringify({
           courseId,
+          format: currentFormat,
+          price: currentPrice
         }),
       });
 
@@ -43,20 +76,24 @@ export function CourseEnrollButton({ courseId }: CourseEnrollButtonProps) {
         throw new Error(error);
       }
 
-      // Redirect to Stripe checkout
+      // Try to get Stripe instance
       const stripe = await stripePromise;
-      if (!stripe) throw new Error('Stripe failed to load');
+      if (!stripe) {
+        throw new Error('Stripe failed to load');
+      }
 
-      const { error: stripeError } = await stripe.redirectToCheckout({
+      // Redirect to checkout
+      const result = await stripe.redirectToCheckout({
         sessionId,
       });
 
-      if (stripeError) {
-        throw new Error(stripeError.message);
+      if (result.error) {
+        throw new Error(result.error.message);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Payment error:', error);
-      alert('Payment failed. Please try again.');
+      setStripeError(error.message || 'Unknown error');
+      alert(`Payment failed: ${error.message || 'Unknown error'}. Please try again later.`);
     } finally {
       setIsLoading(false);
     }
@@ -71,8 +108,8 @@ export function CourseEnrollButton({ courseId }: CourseEnrollButtonProps) {
         flex items-center justify-center relative overflow-hidden
         transition-all duration-300 shadow-md
         ${isLoading 
-          ? 'bg-theme-neutral-400 cursor-not-allowed' 
-          : 'bg-gradient-to-r from-theme-accent-DEFAULT to-theme-accent-dark hover:shadow-lg hover:from-theme-accent-dark hover:to-theme-accent-DEFAULT'
+          ? 'bg-neutral-400 cursor-not-allowed' 
+          : 'bg-gradient-to-r from-blue-600 to-blue-800 hover:shadow-lg hover:from-blue-700 hover:to-blue-900'
         }
       `}
     >
@@ -92,7 +129,7 @@ export function CourseEnrollButton({ courseId }: CourseEnrollButtonProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </span>
-            Enroll Now
+            {currentFormat ? `Enroll Now (${currentFormat})` : 'Enroll Now'}
           </>
         )}
       </div>
