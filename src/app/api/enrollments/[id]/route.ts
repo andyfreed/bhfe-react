@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 
+// Verify the user is authenticated as an admin
 async function verifyAuth() {
   try {
     const cookieStore = await cookies();
@@ -18,32 +19,45 @@ async function verifyAuth() {
   }
 }
 
-// GET: Retrieve all users
-export async function GET() {
+// DELETE: Remove an enrollment by ID
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    // Verify the user is authenticated and an admin
+    // Verify the user is authenticated as an admin
     await verifyAuth();
+    
+    const enrollmentId = params.id;
+    
+    if (!enrollmentId) {
+      return NextResponse.json(
+        { error: 'Enrollment ID is required' },
+        { status: 400 }
+      );
+    }
     
     // Create a server-side Supabase client (with service role key)
     const supabase = createServerSupabaseClient();
     
-    // Fetch all users
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, email, name');
+    // Delete the enrollment
+    const { error } = await supabase
+      .from('enrollments')
+      .delete()
+      .eq('id', enrollmentId);
     
     if (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error deleting enrollment:', error);
       return NextResponse.json(
-        { error: error.message || 'Failed to fetch users' },
+        { error: error.message || 'Failed to delete enrollment' },
         { status: 500 }
       );
     }
     
-    // Return the user data
-    return NextResponse.json(data || []);
+    // Return success response
+    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Unexpected error in GET /api/users:', error);
+    console.error('Unexpected error in DELETE /api/enrollments/[id]:', error);
     
     if (error.message === 'Unauthorized') {
       return NextResponse.json(

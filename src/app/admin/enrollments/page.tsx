@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, createServerSupabaseClient } from '@/lib/supabase';
 
 interface User {
   id: string;
@@ -37,44 +37,142 @@ export default function AdminEnrollmentsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [usingMockData, setUsingMockData] = useState(false);
+  const [isDev, setIsDev] = useState(false);
+
+  // Mock data to use if database connection fails
+  const mockUsers: User[] = [
+    { id: 'mock-user-1', email: 'student1@example.com' },
+    { id: 'mock-user-2', email: 'student2@example.com' },
+    { id: 'mock-user-3', email: 'instructor@example.com' },
+  ];
+
+  const mockCourses: Course[] = [
+    { id: 'mock-course-1', title: 'Introduction to Accounting', main_subject: 'Accounting' },
+    { id: 'mock-course-2', title: 'Tax Preparation Basics', main_subject: 'Tax' },
+    { id: 'mock-course-3', title: 'Advanced Financial Planning', main_subject: 'Finance' },
+  ];
+
+  const mockEnrollments: Enrollment[] = [
+    {
+      id: 'mock-enrollment-1',
+      user_id: 'mock-user-1',
+      course_id: 'mock-course-1',
+      progress: 35,
+      completed: false,
+      enrolled_at: new Date().toISOString(),
+      enrollment_type: 'paid',
+      user: mockUsers[0],
+      course: mockCourses[0],
+    },
+    {
+      id: 'mock-enrollment-2',
+      user_id: 'mock-user-2',
+      course_id: 'mock-course-2',
+      progress: 100,
+      completed: true,
+      enrolled_at: new Date().toISOString(),
+      enrollment_type: 'admin',
+      enrollment_notes: 'Complimentary enrollment',
+      user: mockUsers[1],
+      course: mockCourses[1],
+    },
+  ];
+
+  useEffect(() => {
+    // Check if we're in development mode
+    setIsDev(process.env.NODE_ENV === 'development');
+    // In development, only use mock data if necessary (not by default)
+    // if (process.env.NODE_ENV === 'development') {
+    //   setUsingMockData(true);
+    // }
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
       try {
-        // Fetch enrollments with users and courses
-        const { data: enrollmentsData, error: enrollmentsError } = await supabase
-          .from('enrollments')
-          .select('*, user:users(*), course:courses(*)');
+        console.log('🔍 Fetching enrollments data...');
+        // Fetch enrollments with users and courses from API
+        const enrollmentsResponse = await fetch('/api/enrollments');
+        const enrollmentsData = await enrollmentsResponse.json();
 
-        if (enrollmentsError) throw enrollmentsError;
-        setEnrollments(enrollmentsData || []);
+        console.log('📊 Enrollments response:', enrollmentsData);
+        
+        if (!enrollmentsResponse.ok) {
+          const error = enrollmentsData.error || enrollmentsResponse.statusText;
+          console.warn('Error fetching enrollments:', error);
+          setUsingMockData(true);
+        } else if (Array.isArray(enrollmentsData) && enrollmentsData.length > 0) {
+          setEnrollments(enrollmentsData);
+          setUsingMockData(false);
+        } else {
+          console.warn('No enrollment data returned');
+          // Only use mock data if we specifically need to
+          if (isDev) {
+            console.log('Using mock data in development mode due to empty response');
+            setUsingMockData(true);
+          }
+        }
 
+        console.log('🔍 Fetching users...');
         // Fetch users
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id, email');
+        const usersResponse = await fetch('/api/users');
+        
+        if (!usersResponse.ok) {
+          console.warn('Error fetching users:', usersResponse.statusText);
+          if (usingMockData) {
+            setUsers(mockUsers);
+          }
+        } else {
+          const usersData = await usersResponse.json();
+          if (Array.isArray(usersData) && usersData.length > 0) {
+            setUsers(usersData);
+          } else if (usingMockData) {
+            setUsers(mockUsers);
+          }
+        }
 
-        if (usersError) throw usersError;
-        setUsers(usersData || []);
-
+        console.log('🔍 Fetching courses...');
         // Fetch courses
-        const { data: coursesData, error: coursesError } = await supabase
-          .from('courses')
-          .select('id, title, main_subject');
+        const coursesResponse = await fetch('/api/courses');
+        
+        if (!coursesResponse.ok) {
+          console.warn('Error fetching courses:', coursesResponse.statusText);
+          if (usingMockData) {
+            setCourses(mockCourses);
+          }
+        } else {
+          const coursesData = await coursesResponse.json();
+          if (Array.isArray(coursesData) && coursesData.length > 0) {
+            setCourses(coursesData);
+          } else if (usingMockData) {
+            setCourses(mockCourses);
+          }
+        }
 
-        if (coursesError) throw coursesError;
-        setCourses(coursesData || []);
+        // If we're using mock data, set mock enrollments
+        if (usingMockData) {
+          setEnrollments(mockEnrollments);
+          setErrorMessage('⚠️ Using demonstration data. Database connection issue or missing tables detected.');
+        } else {
+          setErrorMessage(null);
+        }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setErrorMessage('Failed to load data. Please try again later.');
+        console.error('❌ Error fetching data:', error);
+        setErrorMessage('Failed to load data. Using demonstration data instead.');
+        // Use mock data on error
+        setUsingMockData(true);
+        setUsers(mockUsers);
+        setCourses(mockCourses);
+        setEnrollments(mockEnrollments);
       } finally {
         setIsLoading(false);
       }
     }
 
     fetchData();
-  }, []);
+  }, [usingMockData, isDev]);
 
   // Handle enrollment creation
   const handleCreateEnrollment = async (e: React.FormEvent) => {
@@ -89,6 +187,32 @@ export default function AdminEnrollmentsPage() {
     setErrorMessage(null);
 
     try {
+      // If using mock data, create a mock enrollment
+      if (usingMockData) {
+        // Create a mock enrollment
+        const mockEnrollment: Enrollment = {
+          id: `mock-enrollment-${Date.now()}`,
+          user_id: selectedUser,
+          course_id: selectedCourse,
+          progress: 0,
+          completed: false,
+          enrolled_at: new Date().toISOString(),
+          enrollment_type: 'admin',
+          enrollment_notes: enrollmentNotes || undefined,
+          // Link to the selected user and course
+          user: users.find(u => u.id === selectedUser) as User,
+          course: courses.find(c => c.id === selectedCourse) as Course,
+        };
+        
+        // Add to local state
+        setEnrollments([...enrollments, mockEnrollment]);
+        setSelectedUser('');
+        setSelectedCourse('');
+        setEnrollmentNotes('');
+        setSuccessMessage('Enrollment created successfully! (DEMO MODE)');
+        return;
+      }
+
       const newEnrollment = {
         user_id: selectedUser,
         course_id: selectedCourse,
@@ -98,25 +222,64 @@ export default function AdminEnrollmentsPage() {
         enrollment_notes: enrollmentNotes || null,
       };
       
-      const { data, error } = await supabase
-        .from('enrollments')
-        .insert(newEnrollment)
-        .select('*, user:users(*), course:courses(*)');
+      console.log('Creating new enrollment:', newEnrollment);
       
-      if (error) throw error;
+      // Create a server-side API request instead of client-side
+      const response = await fetch('/api/enrollments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newEnrollment),
+      });
       
-      if (data && data.length > 0) {
-        setEnrollments([...enrollments, data[0]]);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error response from API:', errorData);
+        throw new Error(errorData.error || `Failed to create enrollment: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data) {
+        console.log('Successfully created enrollment:', data);
+        
+        // Refresh enrollments to get the latest data
+        fetchEnrollments();
+        
         setSelectedUser('');
         setSelectedCourse('');
         setEnrollmentNotes('');
         setSuccessMessage('Enrollment created successfully!');
+      } else {
+        console.warn('No data returned after enrollment creation');
+        setSuccessMessage('Enrollment created. Please refresh to see changes.');
       }
     } catch (error: any) {
       console.error('Error creating enrollment:', error);
-      setErrorMessage(error.message || 'Failed to create enrollment');
+      if (error.message?.includes('violates unique constraint') || error.message?.includes('duplicate key')) {
+        setErrorMessage('This user is already enrolled in this course.');
+      } else {
+        setErrorMessage(error.message || 'Failed to create enrollment');
+      }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Function to fetch enrollments
+  const fetchEnrollments = async () => {
+    try {
+      const response = await fetch('/api/enrollments');
+      if (!response.ok) {
+        throw new Error('Failed to fetch enrollments');
+      }
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setEnrollments(data);
+      }
+    } catch (error) {
+      console.error('Error fetching enrollments:', error);
     }
   };
 
@@ -127,13 +290,27 @@ export default function AdminEnrollmentsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('enrollments')
-        .delete()
-        .eq('id', enrollmentId);
+      // If using mock data, just remove from local state
+      if (usingMockData) {
+        setEnrollments(enrollments.filter(e => e.id !== enrollmentId));
+        setSuccessMessage('Enrollment deleted successfully! (DEMO MODE)');
+        return;
+      }
+
+      console.log('Deleting enrollment with ID:', enrollmentId);
       
-      if (error) throw error;
+      // Delete via API endpoint
+      const response = await fetch(`/api/enrollments/${enrollmentId}`, {
+        method: 'DELETE',
+      });
       
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error response from API:', errorData);
+        throw new Error(errorData.error || `Failed to delete enrollment: ${response.statusText}`);
+      }
+      
+      console.log('Successfully deleted enrollment');
       setEnrollments(enrollments.filter(e => e.id !== enrollmentId));
       setSuccessMessage('Enrollment deleted successfully!');
     } catch (error: any) {
@@ -146,13 +323,48 @@ export default function AdminEnrollmentsPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Manage User Enrollments</h1>
       
+      {/* Mock data indicator */}
+      {usingMockData && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6">
+          <div className="flex items-center">
+            <svg className="h-6 w-6 mr-2 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span className="font-medium">DEMONSTRATION MODE</span>
+          </div>
+          <p className="mt-1">
+            {isDev ? (
+              <>
+                <strong>Development environment:</strong> Using demonstration data because the required database tables don't exist yet.
+                <br />
+                <span className="text-sm mt-1 block">
+                  To fix this, create the <code className="bg-yellow-50 px-1 py-0.5 rounded">users</code> and <code className="bg-yellow-50 px-1 py-0.5 rounded">enrollments</code> tables in your Supabase database.
+                  <br />
+                  See the <code className="bg-yellow-50 px-1 py-0.5 rounded">create-tables.sql</code> file in the project root.
+                </span>
+              </>
+            ) : (
+              'Using mock data because the database connection failed. Changes made here will not be saved to the database.'
+            )}
+          </p>
+          <div className="mt-2">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Success and error messages */}
       {successMessage && (
         <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4">
           {successMessage}
         </div>
       )}
-      {errorMessage && (
+      {errorMessage && !usingMockData && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
           {errorMessage}
         </div>

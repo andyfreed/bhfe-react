@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isUserAdmin } from '@/lib/auth';
-import { hasAdminCookie, setAdminToken } from '@/lib/cookieUtils';
+import { hasAdminCookie, setAdminToken } from '@/lib/clientCookies';
 
 export function useAdminCheck() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
