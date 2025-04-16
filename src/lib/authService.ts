@@ -306,53 +306,73 @@ export async function getSession(): Promise<AuthResult> {
 }
 
 /**
- * Get the current user
+ * Get the currently authenticated user
  */
 export async function getUser(): Promise<AuthResult> {
   try {
-    // Use mock authentication in development mode if enabled via cookie
-    if (isDevelopment) {
-      // Check for admin token cookie 
-      const cookies = document.cookie.split(';').map(cookie => cookie.trim());
-      const adminTokenCookie = cookies.find(cookie => cookie.startsWith('admin_token='));
-      
-      if (adminTokenCookie && adminTokenCookie.split('=')[1] === 'temporary-token') {
-        console.log('🔧 DEV MODE: Using admin token for authentication');
-        return { 
-          data: {
-            ...MOCK_USER,
-            email: 'a.freed@outlook.com', // Match the email used in the API
-            id: '1cbb829d-e51c-493d-aa4f-c197bc759615' // Match the user ID in the database
-          },
-          error: null 
-        };
-      }
+    // Use mock authentication in development mode if enabled
+    if (useMockAuth) {
+      console.log('🔧 MOCK AUTH: Returning mock user');
+      return {
+        data: MOCK_USER,
+        error: null,
+      };
     }
-
-    // Fall back to regular Supabase auth if no admin token
-    const { data, error } = await supabase.auth.getUser();
     
-    if (error) {
+    console.log('Retrieving current user...');
+    // First check if we have a session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Error fetching session:', sessionError);
+      throw sessionError;
+    }
+    
+    if (!sessionData.session) {
+      console.log('No active session found');
       return {
         data: null,
         error: {
-          message: error.message,
-          status: error.status || 400,
+          message: 'Not authenticated',
+          status: 401,
         },
       };
     }
     
+    // Get user data from the session
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+      throw userError;
+    }
+    
+    // If we have a user, check if they're an admin in the database
+    const user = userData.user;
+    if (user) {
+      const { data: dbUser, error: dbError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (!dbError && dbUser) {
+        // Add role from database to user object
+        user.role = dbUser.role;
+      }
+    }
+    
     return {
-      data: data.user,
+      data: userData.user,
       error: null,
     };
-  } catch (error) {
-    console.error('Unexpected error getting user:', error);
+  } catch (error: any) {
+    console.error('Error getting user:', error);
     return {
       data: null,
       error: {
-        message: 'An unexpected error occurred',
-        status: 500,
+        message: error.message || 'Failed to get user',
+        status: error.status || 500,
       },
     };
   }
