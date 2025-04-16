@@ -22,10 +22,12 @@ async function verifyAuth() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  context: { params: Promise<{ courseId: string }> }
 ) {
   try {
     await verifyAuth();
+    // Await the params object before accessing its properties
+    const params = await context.params;
     const courseId = params.courseId;
     
     if (!courseId) {
@@ -56,10 +58,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  context: { params: Promise<{ courseId: string }> }
 ) {
   try {
     await verifyAuth();
+    // Await the params object before accessing its properties
+    const params = await context.params;
     const courseId = params.courseId;
     
     if (!courseId) {
@@ -160,10 +164,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  context: { params: Promise<{ courseId: string }> }
 ) {
   try {
     await verifyAuth();
+    // Await the params object before accessing its properties
+    const params = await context.params;
     const courseId = params.courseId;
     
     if (!courseId) {

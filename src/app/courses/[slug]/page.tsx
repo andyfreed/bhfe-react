@@ -233,7 +233,7 @@ export default async function CoursePage({ params }: Props) {
 
                 <div className="prose max-w-none bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-md border border-theme-neutral-200">
                   <h2 className="text-2xl font-bold mb-4 accent-gradient-text">Course Description</h2>
-                  <p className="mb-8 text-theme-neutral-600 leading-relaxed">{course.description}</p>
+                  <p className="mb-8 text-theme-neutral-600 leading-relaxed">{course.description.replace(/_x000D_/g, '')}</p>
 
                   <h2 className="text-2xl font-bold mb-4 secondary-gradient-text">Course Features</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

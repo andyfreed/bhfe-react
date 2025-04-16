@@ -63,17 +63,26 @@ export function CourseEnrollButton({
           throw new Error(`Error fetching enrollments: ${response.status}`);
         }
         
-        const enrollments = await response.json();
+        const data = await response.json();
         console.log('Checking enrollments for course:', courseId);
-        console.log('Available enrollments:', enrollments);
+        console.log('Available enrollments data:', data);
         
-        const isAlreadyEnrolled = enrollments.some(
-          (enrollment: any) => enrollment.course_id === courseId || 
-            (enrollment.course && enrollment.course.id === courseId)
-        );
+        // Check if the response has an enrollments array
+        const enrollments = data?.enrollments || [];
         
-        console.log('Is already enrolled:', isAlreadyEnrolled);
-        setIsEnrolled(isAlreadyEnrolled);
+        // Ensure enrollments is an array before using array methods
+        if (Array.isArray(enrollments)) {
+          const isAlreadyEnrolled = enrollments.some(
+            (enrollment: any) => enrollment.course_id === courseId || 
+              (enrollment.course && enrollment.course.id === courseId)
+          );
+          
+          console.log('Is already enrolled:', isAlreadyEnrolled);
+          setIsEnrolled(isAlreadyEnrolled);
+        } else {
+          console.error('Expected enrollments to be an array but got:', typeof enrollments);
+          setIsEnrolled(false);
+        }
       } catch (error) {
         console.error('Error checking enrollment:', error);
       }

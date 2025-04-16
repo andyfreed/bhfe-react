@@ -9,8 +9,10 @@ export const sanitizeText = (text: string): string => {
   // Replace common problematic character sequences
   return text
     .replace(/Ã¢‚¬„¢/g, "'")  // Replace full sequence for apostrophe
+    .replace(/Ã¢â‚¬â„¢/g, "'") // Replace another variant of apostrophe
     .replace(/Ã¢‚¬/g, "'")    // Replace shorter variant
-    .replace(/§/g, 'S')       // Replace section symbol with S
+    .replace(/Ã‚S/g, "§")     // Fix section symbol with proper § character
+    .replace(/§/g, '§')       // Preserve section symbol correctly
     .replace(/Â/g, '')        // Remove invisible character
     .replace(/â/g, '')        // Remove another invisible character
     .replace(/\u00A0/g, ' ')  // Replace non-breaking space with regular space
@@ -20,6 +22,10 @@ export const sanitizeText = (text: string): string => {
     .replace(/'/g, "'")       // Replace another curly single quote variant with straight single quote
     .replace(/"/g, '"')       // Replace curly double quotes with straight double quotes
     .replace(/"/g, '"')       // Replace another curly double quote variant with straight double quotes
+    .replace(/_x000D_/g, '')  // Remove _x000D_ carriage return encoding
+    .replace(/&amp;/g, '&')   // Replace HTML entity &amp; with &
+    .replace(/todayÃ¢‚¬„¢s/g, "today's") // Fix specific case of "todayÃ¢‚¬„¢s"
+    .replace(/HomeownersÃ¢â‚¬â„¢/g, "Homeowners'") // Fix specific case of "HomeownersÃ¢â‚¬â„¢"
     .replace(/\s+/g, ' ')     // Replace multiple spaces with single space
     .trim();
 };
