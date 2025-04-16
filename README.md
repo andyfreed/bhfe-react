@@ -74,6 +74,26 @@ set role = 'admin'
 where id = 'your_user_id';
 ```
 
+### Database Migrations
+
+The application includes database migration scripts in the `src/db/migrations` directory. To apply migrations:
+
+1. Connect to your Supabase database using the SQL Editor
+2. Open and run each migration file in sequence
+
+Key migrations include:
+
+1. Creating user_enrollments table (`src/db/migrations/user_enrollments.sql`)
+2. Adding image_url to courses (`src/db/migrations/add_image_url_to_courses.sql`)
+
+To apply a single migration using our utility script:
+
+```bash
+node scripts/apply-migration.js src/db/migrations/add_image_url_to_courses.sql
+```
+
+Remember to run migrations in order as some might depend on previous ones.
+
 ### Running the Application
 
 1. Start the development server:

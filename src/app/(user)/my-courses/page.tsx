@@ -46,10 +46,8 @@ export default function MyCoursesPage() {
       
       console.log('Fetching enrollments for user:', user.email);
       
-      // Fetch user enrollments from the API
-      const response = await fetch('/api/user/enrollments', {
-        // Add cache: no-cache to ensure fresh data
-        cache: 'no-store',
+      // Fetch user enrollments from the API with cache busting
+      const response = await fetch(`/api/user/enrollments?t=${Date.now()}`, {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -66,25 +64,25 @@ export default function MyCoursesPage() {
       }
       
       const data = await response.json();
-      console.log('Enrollment data received:', data);
+      console.log('Raw enrollment data received:', data);
       
-      // Check if the response has the expected structure
-      if (data && data.enrollments) {
+      // The API returns { enrollments: [...] }
+      if (data && Array.isArray(data.enrollments)) {
         if (data.enrollments.length === 0) {
           console.log('No enrollments found for this user');
         } else {
           console.log(`Found ${data.enrollments.length} enrollments`);
           
           // Log each enrollment to help with debugging
-          data.enrollments.forEach((enrollment, index) => {
+          data.enrollments.forEach((enrollment: Enrollment, index: number) => {
             console.log(`Enrollment #${index + 1}:`, 
               `ID: ${enrollment.id}`,
-              `Course: ${enrollment.course?.title || 'Unknown'}`,
-              `Type: ${enrollment.enrollment_type || 'Unknown'}`
+              `Course ID: ${enrollment.course_id}`,
+              `Course: ${enrollment.course?.title || 'Unknown'}`
             );
           });
         }
-        setEnrollments(data.enrollments || []);
+        setEnrollments(data.enrollments);
       } else {
         console.error('Unexpected response format:', data);
         setError('Invalid enrollment data received');
@@ -178,8 +176,8 @@ export default function MyCoursesPage() {
               <div key={enrollment.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div className="relative h-48">
                   <Image
-                    src={enrollment.course.image_url || '/images/course-placeholder.jpg'}
-                    alt={enrollment.course.title}
+                    src={enrollment.course?.image_url || '/images/course-placeholder.jpg'}
+                    alt={enrollment.course?.title || 'Course'}
                     fill
                     className="object-cover"
                   />
