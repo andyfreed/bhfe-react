@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { headers, cookies as nextCookies } from 'next/headers';
 import { isUserAdmin } from '@/lib/auth';
-import { PostgrestResponse } from '@supabase/supabase-js';
+import { PostgrestResponse, PostgrestError } from '@supabase/supabase-js';
+import { createEnrollment, EnrollmentType, EnrollmentStatus } from '@/lib/supabase/enrollmentUtils';
 
 // Define types for our enrollments data
 type CourseData = {
@@ -186,6 +187,81 @@ export async function GET(request: NextRequest) {
     console.error('Error in GET /api/user/enrollments:', error);
     return NextResponse.json(
       { error: 'Failed to fetch enrollments' },
+      { status: 500 }
+    );
+  }
+}
+
+// Enroll the current user in a course
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createServerSupabaseClient();
+    
+    // Get the current authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = user.id;
+    const body = await request.json();
+    
+    if (!body.courseId) {
+      return NextResponse.json(
+        { error: 'Course ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Use the utility function from enrollmentUtils to create the enrollment
+    const result = await createEnrollment(supabase as any, {
+      userId,
+      courseId: body.courseId,
+      type: EnrollmentType.SELF,
+      status: EnrollmentStatus.ACTIVE
+    });
+    
+    if (!result.success) {
+      // If enrollment already exists
+      if (result.enrollmentId) {
+        return NextResponse.json(
+          { error: 'Already enrolled in this course', enrollmentId: result.enrollmentId },
+          { status: 409 }
+        );
+      }
+      
+      // Other errors
+      return NextResponse.json(
+        { error: result.error || 'Failed to enroll in course' },
+        { status: 500 }
+      );
+    }
+    
+    // Fetch the created enrollment for the response
+    const { data: enrollment, error: fetchError } = await supabase
+      .from('user_enrollments')
+      .select('*')
+      .eq('id', result.enrollmentId)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching created enrollment:', fetchError);
+      return NextResponse.json({
+        message: 'Enrollment created successfully, but details could not be fetched',
+        enrollmentId: result.enrollmentId
+      });
+    }
+    
+    return NextResponse.json(enrollment);
+  } catch (error: any) {
+    console.error('Error in POST /api/user/enrollments:', error);
+    return NextResponse.json(
+      { error: 'Failed to enroll in course', details: error.message },
       { status: 500 }
     );
   }

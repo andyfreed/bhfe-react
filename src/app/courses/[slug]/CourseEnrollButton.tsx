@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { STRIPE_PUBLISHABLE_KEY } from '@/config/stripe';
+import { useRouter } from 'next/navigation';
 
 // Initialize Stripe conditionally with error handling
 let stripePromise: Promise<any> | null = null;
@@ -30,17 +31,89 @@ export function CourseEnrollButton({
   formatPrice
 }: CourseEnrollButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
   const [currentFormat, setCurrentFormat] = useState(selectedFormat);
   const [currentPrice, setCurrentPrice] = useState(formatPrice);
   const [stripeError, setStripeError] = useState<string | null>(null);
+  const router = useRouter();
   
   // Update local state when props change
   useEffect(() => {
     setCurrentFormat(selectedFormat);
     setCurrentPrice(formatPrice);
   }, [selectedFormat, formatPrice]);
+  
+  // Check if the user is already enrolled in this course
+  useEffect(() => {
+    async function checkEnrollment() {
+      try {
+        const response = await fetch('/api/user/enrollments');
+        
+        if (response.status === 401) {
+          // User not authenticated, nothing to do
+          return;
+        }
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching enrollments: ${response.status}`);
+        }
+        
+        const enrollments = await response.json();
+        const isAlreadyEnrolled = enrollments.some(
+          (enrollment: any) => enrollment.course_id === courseId
+        );
+        
+        setIsEnrolled(isAlreadyEnrolled);
+      } catch (error) {
+        console.error('Error checking enrollment:', error);
+      }
+    }
+    
+    if (courseId) {
+      checkEnrollment();
+    }
+  }, [courseId]);
 
-  const handleEnrollClick = async () => {
+  const handleFreeEnrollment = async () => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch('/api/user/enrollments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          courseId,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 409) {
+          // Already enrolled
+          setIsEnrolled(true);
+          alert('You are already enrolled in this course');
+          return;
+        }
+        throw new Error(data.error || 'Failed to enroll in course');
+      }
+      
+      setIsEnrolled(true);
+      alert('Successfully enrolled in course!');
+      
+      // Redirect to my courses page
+      router.push('/my-courses');
+    } catch (error) {
+      console.error('Enrollment error:', error);
+      alert('Enrollment failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaidEnrollment = async () => {
     // Check if there was a previous Stripe error
     if (stripeError) {
       alert(`Payment system is currently unavailable (${stripeError}). Please try again later or contact support.`);
@@ -99,6 +172,39 @@ export function CourseEnrollButton({
     }
   };
 
+  const handleEnrollClick = async () => {
+    // For demonstration purposes, if price is 0 or not set, use free enrollment
+    // In a production environment, you'd want more robust logic here
+    if (!currentPrice || currentPrice <= 0) {
+      await handleFreeEnrollment();
+    } else {
+      await handlePaidEnrollment();
+    }
+  };
+
+  if (isEnrolled) {
+    return (
+      <button
+        onClick={() => router.push('/my-courses')}
+        className={`
+          w-full py-4 px-6 rounded-lg font-bold text-white text-center 
+          flex items-center justify-center relative overflow-hidden
+          transition-all duration-300 shadow-md
+          bg-gradient-to-r from-green-600 to-green-700 hover:shadow-lg
+        `}
+      >
+        <div className="relative z-10 flex items-center">
+          <span className="mr-2">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+          Go To My Courses
+        </div>
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={handleEnrollClick}
@@ -129,7 +235,9 @@ export function CourseEnrollButton({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </span>
-            {currentFormat ? `Enroll Now (${currentFormat})` : 'Enroll Now'}
+            {currentPrice && currentPrice > 0 
+              ? (currentFormat ? `Enroll Now (${currentFormat})` : 'Enroll Now') 
+              : 'Enroll Now (Free)'}
           </>
         )}
       </div>
