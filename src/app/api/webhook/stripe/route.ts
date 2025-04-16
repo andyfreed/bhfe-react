@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
             progress: 0,
             completed: false,
             payment_id: session.id,
-            format: format
+            enrollment_type: 'paid',
+            enrollment_notes: `Paid for ${format} format via Stripe (${session.id})`
           }
         ]);
       

@@ -11,9 +11,12 @@
     "setup-db": "node src/scripts/setup-db.js",
     "setup-dev": "node setup-dev.js",
     "migrate": "node src/scripts/run-migration.js",
-    "add-eaotrp": "node src/scripts/add-eaotrp-enum.js"
+    "add-eaotrp": "node src/scripts/add-eaotrp-enum.js",
+    "db:migrate": "node scripts/apply-migration.js",
+    "test:my-courses": "echo 'Setting admin token cookie and opening my-courses page...' && open 'http://localhost:3000/my-courses'"
   },
   "dependencies": {
+    "@radix-ui/react-label": "^2.1.3",
     "@stripe/stripe-js": "^7.0.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
@@ -22,6 +25,7 @@
     "date-fns": "^4.1.0",
     "lucide-react": "^0.487.0",
     "next": "15.2.4",
+    "node-fetch": "^3.3.2",
     "pg": "^8.14.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -34,7 +38,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pg": "^8.11.12",
+    "@types/pg": "^8.11.13",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",

@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**
  * Enrollment types
@@ -34,12 +35,23 @@ export interface CreateEnrollmentParams {
 
 /**
  * Creates a new enrollment in the database
+ * 
+ * @param userId - ID of the user to enroll
+ * @param courseId - ID of the course to enroll in
+ * @param options - Optional parameters for enrollment (type, status, notes, adminId)
  */
 export async function createEnrollment(
-  client: SupabaseClient,
-  params: CreateEnrollmentParams
+  userId: string, 
+  courseId: string,
+  options: {
+    type?: EnrollmentType;
+    status?: EnrollmentStatus;
+    notes?: string;
+    adminUserId?: string;
+  } = {}
 ) {
-  const { userId, courseId, type, status, notes, adminUserId } = params;
+  const { type, status, notes, adminUserId } = options;
+  const client = createServerSupabaseClient();
   
   try {
     // Check if enrollment already exists
@@ -102,6 +114,15 @@ export async function createEnrollment(
       isNew: false
     };
   }
+}
+
+// For backward compatibility
+export async function createEnrollmentWithClient(
+  client: SupabaseClient,
+  params: CreateEnrollmentParams
+) {
+  const { userId, courseId, type, status, notes, adminUserId } = params;
+  return createEnrollment(userId, courseId, { type, status, notes, adminUserId });
 }
 
 /**

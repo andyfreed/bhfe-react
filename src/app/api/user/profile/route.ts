@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isUserAdmin } from '@/lib/auth';
+import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {

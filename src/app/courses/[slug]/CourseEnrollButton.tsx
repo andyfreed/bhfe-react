@@ -47,7 +47,12 @@ export function CourseEnrollButton({
   useEffect(() => {
     async function checkEnrollment() {
       try {
-        const response = await fetch('/api/user/enrollments');
+        const response = await fetch('/api/user/enrollments', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         
         if (response.status === 401) {
           // User not authenticated, nothing to do
@@ -59,10 +64,15 @@ export function CourseEnrollButton({
         }
         
         const enrollments = await response.json();
+        console.log('Checking enrollments for course:', courseId);
+        console.log('Available enrollments:', enrollments);
+        
         const isAlreadyEnrolled = enrollments.some(
-          (enrollment: any) => enrollment.course_id === courseId
+          (enrollment: any) => enrollment.course_id === courseId || 
+            (enrollment.course && enrollment.course.id === courseId)
         );
         
+        console.log('Is already enrolled:', isAlreadyEnrolled);
         setIsEnrolled(isAlreadyEnrolled);
       } catch (error) {
         console.error('Error checking enrollment:', error);
@@ -101,13 +111,14 @@ export function CourseEnrollButton({
       }
       
       setIsEnrolled(true);
-      alert('Successfully enrolled in course!');
+      console.log('Enrollment successful:', data);
+      alert('Successfully enrolled in course! Redirecting to My Courses page...');
       
       // Redirect to my courses page
       router.push('/my-courses');
     } catch (error) {
       console.error('Enrollment error:', error);
-      alert('Enrollment failed. Please try again.');
+      alert(`Enrollment failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     } finally {
       setIsLoading(false);
     }

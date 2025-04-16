@@ -310,6 +310,26 @@ export async function getSession(): Promise<AuthResult> {
  */
 export async function getUser(): Promise<AuthResult> {
   try {
+    // Use mock authentication in development mode if enabled via cookie
+    if (isDevelopment) {
+      // Check for admin token cookie 
+      const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+      const adminTokenCookie = cookies.find(cookie => cookie.startsWith('admin_token='));
+      
+      if (adminTokenCookie && adminTokenCookie.split('=')[1] === 'temporary-token') {
+        console.log('🔧 DEV MODE: Using admin token for authentication');
+        return { 
+          data: {
+            ...MOCK_USER,
+            email: 'a.freed@outlook.com', // Match the email used in the API
+            id: '1cbb829d-e51c-493d-aa4f-c197bc759615' // Match the user ID in the database
+          },
+          error: null 
+        };
+      }
+    }
+
+    // Fall back to regular Supabase auth if no admin token
     const { data, error } = await supabase.auth.getUser();
     
     if (error) {

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { nanoid } from 'nanoid';
+import { createEnrollment } from '@/lib/supabase/enrollmentUtils';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { headers, cookies as nextCookies } from 'next/headers';
-import { isUserAdmin } from '@/lib/auth';
-import { PostgrestResponse, PostgrestError } from '@supabase/supabase-js';
-import { createEnrollment, EnrollmentType, EnrollmentStatus } from '@/lib/supabase/enrollmentUtils';
+import { isDevelopment } from '@/lib/devUtils';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 // Define types for our enrollments data
 type CourseData = {
@@ -12,257 +13,263 @@ type CourseData = {
   description: string;
   main_subject: string;
   author: string;
-  table_of_contents_url: string;
-  course_content_url: string;
+  table_of_contents_url: string | null;
+  course_content_url: string | null;
+  image_url?: string | null;
 }
 
-type Enrollment = {
+type EnrollmentData = {
   id: string;
   user_id: string;
   course_id: string;
+  progress: number;
+  completed: boolean;
   enrolled_at: string;
-  course: CourseData;
+  course: CourseData | null;
 }
 
-// Get all courses that the current user is enrolled in
+/**
+ * GET /api/user/enrollments
+ * Returns all courses a user is enrolled in
+ */
 export async function GET(request: NextRequest) {
+  console.log(`GET /api/user/enrollments`);
+  
   try {
-    // Log available cookies for debugging
-    const cookieHeader = request.headers.get('cookie');
-    console.log('Cookie header:', cookieHeader);
-    
-    // Create a server-side Supabase client (with service role)
-    const supabase = createServerSupabaseClient();
+    // Check if user is authenticated
+    const cookieStore = await cookies();
+    const adminToken = cookieStore.get('admin_token')?.value;
     
     console.log('API: Attempting to verify authentication');
+    const supabase = createServerSupabaseClient() as any;
     
-    // Try to get the session directly
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Check session (standard auth mechanism)
+    const { data: { session } } = await supabase.auth.getSession();
+    const hasSession = !!session;
     
-    // Debug logging
-    console.log('Session check result:', {
-      hasSession: !!session,
+    // Log session check result for debugging
+    console.log('Session check result:', { 
+      hasSession, 
       userEmail: session?.user?.email,
-      sessionError: sessionError?.message
+      sessionError: undefined 
     });
     
-    // If the session doesn't have cookies, we need to extract them from the request
-    if (sessionError || !session) {
-      console.log('No session found, checking auth cookie directly');
-      
-      // Get auth cookies from request
-      const cookies: Record<string, string> = {};
-      const cookieHeader = request.headers.get('cookie');
-      if (cookieHeader) {
-        cookieHeader.split(';').forEach(cookie => {
-          const [name, value] = cookie.trim().split('=');
-          if (name && value) {
-            cookies[name] = value;
+    let userId: string | undefined;
+    
+    // If the user doesn't have a session, check for admin token in development
+    if (!hasSession) {
+      // In development mode, we may use special handling for admin users
+      if (isDevelopment && adminToken === 'temporary-token') {
+        console.log('Admin token found in development mode - special handling');
+        // Admin demo user in development - use a fixed email
+        const adminEmail = 'a.freed@outlook.com';
+        console.log(`Using default admin email: ${adminEmail}`);
+        
+        // Look up the user ID from the database using the email
+        console.log(`Looking up user ID by email: ${adminEmail}`);
+        try {
+          const userResult = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', adminEmail)
+            .single();
+          
+          if (userResult.error) {
+            console.error('Error finding user by email:', userResult.error);
+            
+            // If user not found, create a test user for development
+            console.log('Creating test user for development');
+            const newUserId = nanoid();
+            const insertResult = await supabase
+              .from('users')
+              .insert({
+                id: newUserId,
+                email: adminEmail,
+                created_at: new Date().toISOString()
+              });
+              
+            if (insertResult.error) {
+              console.error('Error creating test user:', insertResult.error);
+              return NextResponse.json({ error: 'Failed to create test user' }, { status: 500 });
+            }
+            
+            userId = newUserId;
+            
+            // Create a test enrollment
+            console.log('Creating test enrollment for development');
+            try {
+              // First get a course to enroll in
+              const coursesResult = await supabase
+                .from('courses')
+                .select('id')
+                .limit(1)
+                .single();
+              
+              if (coursesResult.error) {
+                console.error('Error finding course:', coursesResult.error);
+                return NextResponse.json({ error: 'Failed to find a course' }, { status: 500 });
+              }
+              
+              const courseId = coursesResult.data.id;
+              
+              // Create the enrollment
+              const enrollmentResult = await supabase
+                .from('user_enrollments')
+                .insert({
+                  id: nanoid(),
+                  user_id: userId,
+                  course_id: courseId,
+                  progress: 0,
+                  completed: false,
+                  enrolled_at: new Date().toISOString()
+                });
+              
+              if (enrollmentResult.error) {
+                console.error('Error creating test enrollment:', enrollmentResult.error);
+                return NextResponse.json({ error: 'Failed to create test enrollment' }, { status: 500 });
+              }
+            } catch (e) {
+              console.error('Error creating test enrollment:', e);
+              return NextResponse.json({ error: 'Failed to create test enrollment' }, { status: 500 });
+            }
+          } else if (userResult.data) {
+            userId = userResult.data.id;
+            console.log(`Found database user ID: ${userId}`);
+          } else {
+            console.log('No user found with email:', adminEmail);
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
           }
-        });
-      }
-      
-      console.log('Available cookies:', Object.keys(cookies));
-      
-      // Check for admin token in cookies for bypass in development
-      const hasAdminToken = cookies['admin_token'] === 'temporary-token';
-      if (process.env.NODE_ENV === 'development' && hasAdminToken) {
-        console.log('Admin token found in development mode - using admin user');
-        // Example admin user for development testing
-        const userId = 'a3b1c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d'; // Replace with your admin user ID
-        
-        // Get enrollments for admin user
-        const enrollmentResult = await supabase
-          .from('user_enrollments')
-          .select(`
-            *,
-            course:courses(
-              id, 
-              title, 
-              description, 
-              main_subject,
-              author,
-              table_of_contents_url,
-              course_content_url
-            )
-          `)
-          .eq('user_id', userId)
-          .order('enrolled_at', { ascending: false });
-          
-        const { data, error } = enrollmentResult as { data: Enrollment[], error: any };
-          
-        if (error) {
-          console.error('Error fetching admin enrollments:', error);
-          throw error;
+        } catch (e) {
+          console.error('Error during user lookup:', e);
+          return NextResponse.json({ error: 'Error during user lookup' }, { status: 500 });
         }
-        
-        console.log('Admin enrollments found:', data?.length || 0);
-        return NextResponse.json(data || []);
+      } else {
+        // Not authenticated and not using admin token
+        console.log('Not authenticated and not using valid admin token');
+        return NextResponse.json({ enrollments: [] }); // Return empty array instead of 401
       }
-      
-      // Try to get user ID from auth directly
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      console.log('Direct user check:', {
-        hasUser: !!user,
-        userEmail: user?.email,
-        userError: userError?.message
-      });
-      
-      if (userError || !user) {
-        console.error('Authentication error:', userError || 'No user found');
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        );
-      }
-      
-      // Use this user ID
-      const userId = user.id;
-      console.log('Using user ID from direct auth check:', userId);
-      
-      // Get all enrollments for the user with course details
-      const enrollmentResult = await supabase
-        .from('user_enrollments')
-        .select(`
-          *,
-          course:courses(
-            id, 
-            title, 
-            description, 
-            main_subject,
-            author,
-            table_of_contents_url,
-            course_content_url
-          )
-        `)
-        .eq('user_id', userId)
-        .order('enrolled_at', { ascending: false });
-      
-      const { data, error } = enrollmentResult as { data: Enrollment[], error: any };
-      
-      if (error) {
-        console.error('Error fetching user enrollments:', error);
-        throw error;
-      }
-
-      console.log('Enrollments found:', data?.length || 0);
-      
-      return NextResponse.json(data || []);
+    } else {
+      // Use the authenticated user's ID
+      userId = session.user.id;
     }
     
-    // If we have a session, use the user ID from the session
-    const userId = session.user.id;
-    console.log('Using user ID from session:', userId);
+    if (!userId) {
+      console.log('No user ID found after auth checks');
+      return NextResponse.json({ enrollments: [] }); // Return empty array instead of 401
+    }
     
     // Get all enrollments for the user with course details
-    const enrollmentResult = await supabase
-      .from('user_enrollments')
-      .select(`
-        *,
-        course:courses(
-          id, 
-          title, 
-          description, 
-          main_subject,
-          author,
-          table_of_contents_url,
-          course_content_url
-        )
-      `)
-      .eq('user_id', userId)
-      .order('enrolled_at', { ascending: false });
-    
-    const { data, error } = enrollmentResult as { data: Enrollment[], error: any };
-    
-    if (error) {
-      console.error('Error fetching user enrollments:', error);
-      throw error;
+    try {
+      console.log(`Fetching enrollments for user ID: ${userId}`);
+      
+      // Use a two-step approach that we know works
+      // Step 1: Get the enrollments
+      const basicEnrollmentsResult = await supabase
+        .from('user_enrollments')
+        .select('*')
+        .eq('user_id', userId);
+        
+      if (basicEnrollmentsResult.error) {
+        console.error('Error fetching basic enrollments:', basicEnrollmentsResult.error);
+        return NextResponse.json({ error: 'Failed to fetch enrollments' }, { status: 500 });
+      }
+      
+      // Step 2: Get course details for each enrollment
+      const enrollmentsWithCourses = await Promise.all(
+        (basicEnrollmentsResult.data || []).map(async (enrollment: any) => {
+          const courseResult = await supabase
+            .from('courses')
+            .select('*')
+            .eq('id', enrollment.course_id)
+            .single();
+            
+          if (courseResult.error) {
+            console.error(`Error fetching course ${enrollment.course_id}:`, courseResult.error);
+            return {
+              ...enrollment,
+              course: null
+            };
+          }
+          
+          return {
+            ...enrollment,
+            course: courseResult.data
+          };
+        })
+      );
+      
+      console.log(`Enrollments found: ${enrollmentsWithCourses.length}`);
+      return NextResponse.json({ enrollments: enrollmentsWithCourses || [] });
+    } catch (error) {
+      console.error('Error fetching enrollments:', error);
+      return NextResponse.json({ error: 'Failed to fetch enrollments' }, { status: 500 });
     }
-
-    console.log('Enrollments found:', data?.length || 0);
-    
-    return NextResponse.json(data || []);
-  } catch (error: any) {
-    console.error('Error in GET /api/user/enrollments:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch enrollments' },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Error in enrollment API:', error);
+    // Convert the error to a string for more detail
+    let errorMessage = 'Internal server error';
+    if (error instanceof Error) {
+      errorMessage = `${error.name}: ${error.message}`;
+      console.error('Error stack:', error.stack);
+    } else {
+      errorMessage = String(error);
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
-// Enroll the current user in a course
+/**
+ * POST /api/user/enrollments
+ * Enrolls a user in a course
+ */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    // Check if user is authenticated
+    const supabase = createServerSupabaseClient() as any;
+    const { data: { session } } = await supabase.auth.getSession();
     
-    // Get the current authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     
-    const userId = user.id;
-    const body = await request.json();
+    // Get the course ID from the request body
+    const { courseId } = await request.json();
     
-    if (!body.courseId) {
-      return NextResponse.json(
-        { error: 'Course ID is required' },
-        { status: 400 }
-      );
+    if (!courseId) {
+      return NextResponse.json({ error: 'Course ID is required' }, { status: 400 });
     }
     
-    // Use the utility function from enrollmentUtils to create the enrollment
-    const result = await createEnrollment(supabase as any, {
-      userId,
-      courseId: body.courseId,
-      type: EnrollmentType.SELF,
-      status: EnrollmentStatus.ACTIVE
-    });
+    // Check if the user is already enrolled
+    const userId = session.user.id;
     
-    if (!result.success) {
-      // If enrollment already exists
-      if (result.enrollmentId) {
-        return NextResponse.json(
-          { error: 'Already enrolled in this course', enrollmentId: result.enrollmentId },
-          { status: 409 }
-        );
-      }
-      
-      // Other errors
-      return NextResponse.json(
-        { error: result.error || 'Failed to enroll in course' },
-        { status: 500 }
-      );
-    }
-    
-    // Fetch the created enrollment for the response
-    const { data: enrollment, error: fetchError } = await supabase
+    const existingEnrollment = await supabase
       .from('user_enrollments')
-      .select('*')
-      .eq('id', result.enrollmentId)
+      .select('id')
+      .eq('user_id', userId)
+      .eq('course_id', courseId)
       .single();
-    
-    if (fetchError) {
-      console.error('Error fetching created enrollment:', fetchError);
-      return NextResponse.json({
-        message: 'Enrollment created successfully, but details could not be fetched',
-        enrollmentId: result.enrollmentId
+      
+    if (existingEnrollment.data) {
+      return NextResponse.json({ 
+        message: 'Already enrolled in this course',
+        enrollmentId: existingEnrollment.data.id
       });
     }
     
-    return NextResponse.json(enrollment);
-  } catch (error: any) {
-    console.error('Error in POST /api/user/enrollments:', error);
-    return NextResponse.json(
-      { error: 'Failed to enroll in course', details: error.message },
-      { status: 500 }
-    );
+    // Create the enrollment
+    const result = await createEnrollment(userId, courseId);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Successfully enrolled in course',
+      enrollmentId: result.enrollmentId
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error enrolling in course:', error);
+    return NextResponse.json({ error: 'Failed to enroll in course' }, { status: 500 });
   }
 } 
