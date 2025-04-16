@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase, createServerSupabaseClient } from '@/lib/supabase';
+import Link from 'next/link';
 
 interface User {
   id: string;
@@ -320,8 +321,16 @@ export default function AdminEnrollmentsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Manage User Enrollments</h1>
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Manage Enrollments</h1>
+        <Link
+          href="/admin/enrollments/manual"
+          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Manual Enrollment
+        </Link>
+      </div>
       
       {/* Mock data indicator */}
       {usingMockData && (
