@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     
     // Insert the enrollment using service role
     const { data, error } = await supabase
-      .from('enrollments')
+      .from('user_enrollments')
       .insert(enrollment)
       .select('*, user:users(*), course:courses(*)');
     
@@ -92,7 +92,7 @@ export async function GET() {
     
     // Fetch all enrollments
     const { data, error } = await supabase
-      .from('enrollments')
+      .from('user_enrollments')
       .select('*, user:users(*), course:courses(*)');
     
     if (error) {

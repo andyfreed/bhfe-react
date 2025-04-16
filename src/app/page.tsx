@@ -1,39 +1,48 @@
-import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
   return (
     <>
-      <section className="bg-blue-900 text-white py-20">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-6">
-                Professional Education for Financial Advisors
-              </h1>
-              <p className="text-xl mb-8">
-                Comprehensive continuing education courses for CFP®, CPA, and other financial professionals.
-              </p>
-              <Link 
-                href="/courses" 
-                className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
-              >
-                View Our Courses
-              </Link>
-            </div>
-            <div className="relative h-[400px]">
-              <Image
-                src="/images/hero-image.jpg"
-                fill
-                style={{ objectFit: 'cover' }}
-                alt="Financial Education"
-                className="rounded-lg shadow-xl"
-                priority
-              />
-            </div>
+      {/* Hero Section with Pure HTML approach */}
+      <div 
+        style={{
+          height: "500px", 
+          width: "100%", 
+          backgroundImage: "url('/street.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          position: "relative"
+        }}
+      >
+        <div 
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          <div className="text-center max-w-5xl text-white px-4">
+            <h1 className="text-4xl md:text-5xl font-semibold mb-4 whitespace-nowrap tracking-tight">
+              Self-Study Online and Print CPE Courses
+            </h1>
+            <h2 className="text-xl md:text-2xl font-medium mb-6 whitespace-nowrap tracking-wide">
+              CPA, CFP®, EA, ERPA, CDFA®, IWI/CIMA® & Tax Return Preparers
+            </h2>
+            <Link 
+              href="/courses" 
+              className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-colors"
+            >
+              Shop For Courses
+            </Link>
           </div>
         </div>
-      </section>
+      </div>
 
       <section className="py-16">
         <div className="container mx-auto px-4">

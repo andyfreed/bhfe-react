@@ -42,7 +42,7 @@ export async function DELETE(
     
     // Delete the enrollment
     const { error } = await supabase
-      .from('enrollments')
+      .from('user_enrollments')
       .delete()
       .eq('id', enrollmentId);
     

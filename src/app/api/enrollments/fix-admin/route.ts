@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // This admin user ID should match the one used in development
-const ADMIN_USER_ID = 'a3b1c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+const ADMIN_USER_ID = '1cbb829d-e51c-493d-aa4f-c197bc759615';
 
 // This endpoint is for fixing enrollments for the admin user in development mode
 export async function GET(req: NextRequest) {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         user_id,
         course_id,
         enrolled_at,
-        status
+        enrollment_type
       `)
       .eq('user_id', ADMIN_USER_ID)
       .eq('course_id', '1')  // Course ID 1 is typically the first course
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       .insert({
         user_id: ADMIN_USER_ID,
         course_id: '1',  // Course ID for the course
-        status: 'active',
+        enrollment_type: 'admin',
         enrolled_at: new Date().toISOString()
       })
       .select()

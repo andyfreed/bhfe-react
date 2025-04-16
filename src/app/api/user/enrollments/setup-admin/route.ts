@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // The admin user ID to set up enrollments for
-const ADMIN_USER_ID = 'a3b1c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+const ADMIN_USER_ID = '1cbb829d-e51c-493d-aa4f-c197bc759615';
 
 /**
  * API endpoint to ensure the admin user has enrollments for testing purposes
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
         .insert({
           user_id: ADMIN_USER_ID,
           course_id: course.id,
-          status: 'active',
+          enrollment_type: 'admin',
           enrolled_at: new Date().toISOString()
         })
         .select()
