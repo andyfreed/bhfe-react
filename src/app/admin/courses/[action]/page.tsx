@@ -144,12 +144,22 @@ export default function CourseForm({ params }: PageParams) {
       formData.append('credits', JSON.stringify(course.credits));
       formData.append('states', JSON.stringify(course.states));
       
-      // Add files if they exist
+      // Add files if they exist and log details to help debugging
       if (table_of_contents_file) {
+        console.log('Attaching TOC file:', {
+          name: table_of_contents_file.name,
+          size: table_of_contents_file.size,
+          type: table_of_contents_file.type
+        });
         formData.append('table_of_contents_file', table_of_contents_file);
       }
       
       if (course_content_file) {
+        console.log('Attaching content file:', {
+          name: course_content_file.name,
+          size: course_content_file.size,
+          type: course_content_file.type
+        });
         formData.append('course_content_file', course_content_file);
       }
       
@@ -163,6 +173,10 @@ export default function CourseForm({ params }: PageParams) {
       const method = action === 'edit' ? 'PUT' : 'POST';
       
       console.log(`Submitting ${method} request to ${url}`);
+      console.log('Current URLs:', {
+        tocUrl: course.table_of_contents_url,
+        contentUrl: course.course_content_url
+      });
       
       const response = await fetch(url, {
         method: method,
@@ -175,6 +189,9 @@ export default function CourseForm({ params }: PageParams) {
         console.error('API error response:', errorData);
         throw new Error(`Failed to save course: ${errorData?.error || response.statusText}`);
       }
+
+      const responseData = await response.json();
+      console.log('Course saved successfully:', responseData);
       
       // For edit action, stay on the same page and show success message
       if (action === 'edit') {
@@ -209,6 +226,11 @@ export default function CourseForm({ params }: PageParams) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target;
     if (files && files.length > 0) {
+      console.log(`Selected ${name} file:`, {
+        name: files[0].name,
+        size: files[0].size,
+        type: files[0].type
+      });
       setCourse(prev => ({ ...prev, [name]: files[0] }));
     }
   };

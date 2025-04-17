@@ -13,6 +13,7 @@
     "migrate": "node src/scripts/run-migration.js",
     "add-eaotrp": "node src/scripts/add-eaotrp-enum.js",
     "db:migrate": "node scripts/apply-migration.js",
+    "configure:storage": "node scripts/configure-supabase-storage.js",
     "test:my-courses": "echo 'Setting admin token cookie and opening my-courses page...' && open 'http://localhost:3000/my-courses'"
   },
   "dependencies": {

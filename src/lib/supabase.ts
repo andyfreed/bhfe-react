@@ -137,11 +137,15 @@ export async function uploadFileFromServer(
       };
     }
 
+    console.log(`Uploading file to Supabase Storage: ${bucket}/${path ? `${path}/` : ''}${fileName}`);
+    
     const client = createServerSupabaseClient();
     const filePath = path ? `${path}/${fileName}` : fileName;
     
+    // Perform the upload
     const { data, error } = await client.storage.from(bucket).upload(filePath, fileBuffer, {
       upsert: true,
+      contentType: fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined
     });
 
     if (error) {
@@ -149,12 +153,37 @@ export async function uploadFileFromServer(
       return { data: null, error };
     }
 
+    if (!data || !data.path) {
+      console.error('Upload succeeded but no data returned:', data);
+      return { 
+        data: null, 
+        error: { 
+          message: 'Upload succeeded but no data path returned'
+        } 
+      };
+    }
+
+    console.log('Successfully uploaded file, getting public URL:', data.path);
     const { data: publicUrlData } = client.storage.from(bucket).getPublicUrl(data.path);
+
+    if (!publicUrlData || !publicUrlData.publicUrl) {
+      console.error('Failed to get public URL:', publicUrlData);
+      return { 
+        data: null, 
+        error: { 
+          message: 'Failed to generate public URL'
+        } 
+      };
+    }
+
+    // Ensure the URL is properly formatted
+    const publicUrl = publicUrlData.publicUrl;
+    console.log('Generated public URL:', publicUrl);
 
     return {
       data: {
         ...data,
-        publicUrl: publicUrlData.publicUrl,
+        publicUrl
       },
       error: null,
     };
@@ -164,6 +193,7 @@ export async function uploadFileFromServer(
       data: null,
       error: {
         message: 'An unexpected error occurred during file upload from server',
+        details: error instanceof Error ? error.message : String(error)
       },
     };
   }

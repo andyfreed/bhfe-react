@@ -4,6 +4,22 @@ import { cookies } from 'next/headers';
 import { uploadFileFromServer } from '@/lib/supabase';
 import type { CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 
+// Utility function to check if a URL is accessible
+async function isUrlAccessible(url: string): Promise<boolean> {
+  try {
+    if (!url || !url.startsWith('http')) {
+      console.log(`Invalid URL format: ${url}`);
+      return false;
+    }
+    
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch (error) {
+    console.error(`Error checking URL ${url}:`, error);
+    return false;
+  }
+}
+
 async function verifyAuth() {
   try {
     const cookieStore = await cookies();
@@ -105,25 +121,104 @@ export async function PUT(
       const tocFile = formData.get('table_of_contents_file') as File;
       const contentFile = formData.get('course_content_file') as File;
       
+      console.log("TOC file type:", tocFile ? typeof tocFile : 'null', tocFile ? Object.prototype.toString.call(tocFile) : '');
+      console.log("TOC file properties:", tocFile ? Object.getOwnPropertyNames(tocFile) : 'null');
+      
       // Upload files if they exist
       if (tocFile && tocFile.size > 0) {
-        const tocPath = `courses/${courseId}/toc-${Date.now()}-${tocFile.name}`;
-        courseData.table_of_contents_url = await uploadFileFromServer(
-          tocFile, 
-          'course-files', 
-          tocPath
-        );
-        console.log('Updated TOC file:', courseData.table_of_contents_url);
+        try {
+          console.log("Processing TOC file:", {
+            name: tocFile.name,
+            size: tocFile.size,
+            type: Object.prototype.toString.call(tocFile)
+          });
+          
+          // Convert File to ArrayBuffer then to Buffer
+          const tocArrayBuffer = await tocFile.arrayBuffer();
+          const tocBuffer = Buffer.from(tocArrayBuffer);
+          
+          const tocPath = `courses/${courseId}/toc-${Date.now()}-${tocFile.name}`;
+          console.log("Uploading TOC file to path:", tocPath);
+          
+          const tocUploadResult = await uploadFileFromServer(
+            tocBuffer, 
+            tocFile.name,
+            'course-files', 
+            tocPath
+          );
+          
+          if (tocUploadResult.error) {
+            console.error("TOC file upload error:", tocUploadResult.error);
+            throw new Error(`TOC upload failed: ${tocUploadResult.error.message}`);
+          }
+          
+          if (!tocUploadResult.data || !tocUploadResult.data.publicUrl) {
+            console.error("TOC file upload returned invalid data:", tocUploadResult);
+            throw new Error("TOC upload failed: No public URL returned");
+          }
+          
+          courseData.table_of_contents_url = tocUploadResult.data.publicUrl;
+          console.log('Updated TOC file URL:', courseData.table_of_contents_url);
+          
+          // Verify the URL is accessible
+          const isAccessible = await isUrlAccessible(courseData.table_of_contents_url);
+          console.log(`TOC file accessible: ${isAccessible}`);
+          
+          if (!isAccessible) {
+            console.warn('TOC file URL is not accessible, it may not be public or the bucket permissions might need adjustment');
+          }
+        } catch (error) {
+          console.error('Error converting and uploading TOC file:', error);
+          // Don't throw here to allow the update to continue with other fields
+        }
       }
       
       if (contentFile && contentFile.size > 0) {
-        const contentPath = `courses/${courseId}/content-${Date.now()}-${contentFile.name}`;
-        courseData.course_content_url = await uploadFileFromServer(
-          contentFile,
-          'course-files',
-          contentPath
-        );
-        console.log('Updated content file:', courseData.course_content_url);
+        try {
+          console.log("Processing content file:", {
+            name: contentFile.name,
+            size: contentFile.size,
+            type: Object.prototype.toString.call(contentFile)
+          });
+          
+          // Convert File to ArrayBuffer then to Buffer
+          const contentArrayBuffer = await contentFile.arrayBuffer();
+          const contentBuffer = Buffer.from(contentArrayBuffer);
+          
+          const contentPath = `courses/${courseId}/content-${Date.now()}-${contentFile.name}`;
+          console.log("Uploading content file to path:", contentPath);
+          
+          const contentUploadResult = await uploadFileFromServer(
+            contentBuffer,
+            contentFile.name,
+            'course-files',
+            contentPath
+          );
+          
+          if (contentUploadResult.error) {
+            console.error("Content file upload error:", contentUploadResult.error);
+            throw new Error(`Content upload failed: ${contentUploadResult.error.message}`);
+          }
+          
+          if (!contentUploadResult.data || !contentUploadResult.data.publicUrl) {
+            console.error("Content file upload returned invalid data:", contentUploadResult);
+            throw new Error("Content upload failed: No public URL returned");
+          }
+          
+          courseData.course_content_url = contentUploadResult.data.publicUrl;
+          console.log('Updated content file URL:', courseData.course_content_url);
+          
+          // Verify the URL is accessible
+          const isAccessible = await isUrlAccessible(courseData.course_content_url);
+          console.log(`Content file accessible: ${isAccessible}`);
+          
+          if (!isAccessible) {
+            console.warn('Content file URL is not accessible, it may not be public or the bucket permissions might need adjustment');
+          }
+        } catch (error) {
+          console.error('Error converting and uploading content file:', error);
+          // Don't throw here to allow the update to continue with other fields
+        }
       }
     } else {
       // Handle regular JSON request
