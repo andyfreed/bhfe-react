@@ -97,22 +97,42 @@ export async function POST(request: Request) {
       // Upload files if they exist
       if (tocFile && tocFile.size > 0) {
         const tocPath = `courses/${Date.now()}-${tocFile.name}`;
-        courseData.table_of_contents_url = await uploadFileFromServer(
+        const tocResult = await uploadFileFromServer(
           tocFile, 
           'course-files', 
           tocPath
         );
-        console.log('Uploaded TOC file:', courseData.table_of_contents_url);
+        console.log('Uploaded TOC file result:', tocResult);
+        
+        if (tocResult.data && tocResult.data.publicUrl) {
+          courseData.table_of_contents_url = tocResult.data.publicUrl;
+        } else {
+          console.error('Failed to get public URL for TOC file:', tocResult.error);
+          return NextResponse.json(
+            { error: 'Failed to upload table of contents file' },
+            { status: 500 }
+          );
+        }
       }
       
       if (contentFile && contentFile.size > 0) {
         const contentPath = `courses/${Date.now()}-${contentFile.name}`;
-        courseData.course_content_url = await uploadFileFromServer(
+        const contentResult = await uploadFileFromServer(
           contentFile,
           'course-files',
           contentPath
         );
-        console.log('Uploaded content file:', courseData.course_content_url);
+        console.log('Uploaded content file result:', contentResult);
+        
+        if (contentResult.data && contentResult.data.publicUrl) {
+          courseData.course_content_url = contentResult.data.publicUrl;
+        } else {
+          console.error('Failed to get public URL for content file:', contentResult.error);
+          return NextResponse.json(
+            { error: 'Failed to upload course content file' },
+            { status: 500 }
+          );
+        }
       }
     } else {
       // Handle regular JSON request
@@ -207,22 +227,42 @@ export async function PUT(request: Request) {
       // Upload files if they exist
       if (tocFile && tocFile.size > 0) {
         const tocPath = `courses/${courseId}/toc-${Date.now()}-${tocFile.name}`;
-        courseData.table_of_contents_url = await uploadFileFromServer(
+        const tocResult = await uploadFileFromServer(
           tocFile, 
           'course-files', 
           tocPath
         );
-        console.log('Updated TOC file:', courseData.table_of_contents_url);
+        console.log('Updated TOC file result:', tocResult);
+        
+        if (tocResult.data && tocResult.data.publicUrl) {
+          courseData.table_of_contents_url = tocResult.data.publicUrl;
+        } else {
+          console.error('Failed to get public URL for TOC file:', tocResult.error);
+          return NextResponse.json(
+            { error: 'Failed to upload table of contents file' },
+            { status: 500 }
+          );
+        }
       }
       
       if (contentFile && contentFile.size > 0) {
         const contentPath = `courses/${courseId}/content-${Date.now()}-${contentFile.name}`;
-        courseData.course_content_url = await uploadFileFromServer(
+        const contentResult = await uploadFileFromServer(
           contentFile,
           'course-files',
           contentPath
         );
-        console.log('Updated content file:', courseData.course_content_url);
+        console.log('Updated content file result:', contentResult);
+        
+        if (contentResult.data && contentResult.data.publicUrl) {
+          courseData.course_content_url = contentResult.data.publicUrl;
+        } else {
+          console.error('Failed to get public URL for content file:', contentResult.error);
+          return NextResponse.json(
+            { error: 'Failed to upload course content file' },
+            { status: 500 }
+          );
+        }
       }
     } else {
       // Handle regular JSON request
