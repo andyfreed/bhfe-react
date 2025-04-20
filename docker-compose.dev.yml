@@ -17,31 +17,8 @@ services:
       - .:/app
       - /app/node_modules
     restart: unless-stopped
-    depends_on:
-      - db
-    networks:
-      - app-network
     command: npm run dev
 
-  db:
-    image: postgres:14-alpine
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=bhfe_dev
-    volumes:
-      - postgres-dev-data:/var/lib/postgresql/data
-      - ./setup.sql:/docker-entrypoint-initdb.d/10-setup.sql
-      - ./create_admin.sql:/docker-entrypoint-initdb.d/20-create-admin.sql
-    networks:
-      - app-network
-
 networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  postgres-dev-data:
-    driver: local 
+  default:
+    name: app-network 
