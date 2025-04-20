@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCourseWithRelations, updateCourse, deleteCourse } from '@/lib/courses';
-import { cookies } from 'next/headers';
 import { uploadFileFromServer } from '@/lib/supabase';
+import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 import type { CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 
 // Utility function to check if a URL is accessible
@@ -22,14 +22,13 @@ async function isUrlAccessible(url: string): Promise<boolean> {
 
 async function verifyAuth() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('admin_token');
+    const token = getServerAdminToken();
     
-    if (!token || token.value !== 'temporary-token') {
+    if (!token || !isValidAdminToken(token)) {
       console.error('Authentication failed: Token missing or invalid');
       throw new Error('Unauthorized');
     }
-    console.log('Authentication successful');
+    console.log('User is admin, allowing access');
   } catch (error) {
     console.error('Authentication error:', error);
     throw new Error('Unauthorized');
