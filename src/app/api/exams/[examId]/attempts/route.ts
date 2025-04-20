@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerCookie, isValidAdminToken } from '@/lib/serverCookies';
+import { checkAdminAccess, safeResponse } from '@/lib/adminAuth';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**
@@ -17,13 +17,12 @@ export async function GET(
   }
 
   try {
-    // Check for admin token
-    const adminToken = getServerCookie('admin_token');
-    console.log('Admin token check:', adminToken);
+    // Check for admin access first
+    const adminUserId = await checkAdminAccess();
     
-    if (adminToken && isValidAdminToken(adminToken)) {
-      console.log('Valid admin token found - returning mock attempts');
-      // Return an empty array of attempts for now to allow creating a new one
+    if (adminUserId) {
+      console.log('Admin access verified - returning mock attempts');
+      // Return an empty array of attempts for admin
       return NextResponse.json([]);
     }
     
@@ -43,12 +42,14 @@ export async function GET(
     console.log('User ID:', userId);
     
     // Get attempts for this user and exam
-    const { data: attempts, error } = await supabase
+    const response = await supabase
       .from('user_exam_attempts')
       .select('*')
       .eq('user_id', userId)
       .eq('exam_id', examId)
       .order('created_at', { ascending: false });
+      
+    const { data: attempts, error } = safeResponse<any[]>(response);
     
     if (error) {
       console.error('Error fetching attempts:', error);
@@ -77,17 +78,16 @@ export async function POST(
   }
 
   try {
-    // Check for admin token
-    const adminToken = getServerCookie('admin_token');
-    console.log('Admin token check for POST:', adminToken);
+    // Check for admin access first
+    const adminUserId = await checkAdminAccess();
     
-    if (adminToken && isValidAdminToken(adminToken)) {
-      console.log('Valid admin token found - creating mock attempt');
+    if (adminUserId) {
+      console.log('Admin access verified - creating mock attempt');
       
-      // Return a mock attempt 
+      // Return a mock attempt for admin
       return NextResponse.json({
         id: 'mock-attempt-id',
-        user_id: 'admin-user-id',
+        user_id: adminUserId,
         exam_id: examId,
         score: null,
         completed: false,
@@ -114,11 +114,13 @@ export async function POST(
     console.log('Creating attempt for user ID:', userId);
     
     // First, get the exam to check if there's an attempt limit
-    const { data: examData, error: examError } = await supabase
+    const examResponse = await supabase
       .from('exams')
       .select('attempt_limit')
       .eq('id', examId)
       .single();
+      
+    const { data: examData, error: examError } = safeResponse<any>(examResponse);
     
     if (examError) {
       console.error('Error fetching exam:', examError);
@@ -128,11 +130,13 @@ export async function POST(
     // If there's an attempt limit, check if the user has reached it
     if (examData && examData.attempt_limit !== null) {
       // Count existing attempts
-      const { data: attemptData, count, error: countError } = await supabase
+      const attemptResponse = await supabase
         .from('user_exam_attempts')
         .select('*', { count: 'exact' })
         .eq('user_id', userId)
         .eq('exam_id', examId);
+        
+      const { data: attemptData, error: countError, count } = safeResponse<any>(attemptResponse);
       
       if (countError) {
         console.error('Error counting attempts:', countError);
@@ -149,7 +153,7 @@ export async function POST(
     }
     
     // Create new attempt
-    const { data, error } = await supabase
+    const insertResponse = await supabase
       .from('user_exam_attempts')
       .insert({
         user_id: userId,
@@ -159,6 +163,8 @@ export async function POST(
       })
       .select()
       .single();
+      
+    const { data, error } = safeResponse<any>(insertResponse);
     
     if (error) {
       console.error('Error creating attempt:', error);

@@ -178,6 +178,8 @@ export default async function CoursePage({ params }: Props) {
     console.error('Error fetching exams:', error);
   }
 
+  const hasExams = exams && exams.length > 0;
+
   return (
     <div className="relative min-h-screen">
       {/* Background effect */}
@@ -249,7 +251,7 @@ export default async function CoursePage({ params }: Props) {
                     ))}
                   </div>
 
-                  {exams.length > 0 && (
+                  {hasExams && (
                     <>
                       <h2 className="text-2xl font-bold mb-4 primary-gradient-text">Course Exams</h2>
                       <div className="space-y-4 mb-8">

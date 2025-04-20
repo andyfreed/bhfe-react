@@ -41,7 +41,8 @@ export function setServerCookie(
       path: options.path || '/',
     };
     
-    cookies().set(name, value, finalOptions);
+    const cookieStore = cookies();
+    cookieStore.set(name, value, finalOptions);
   } catch (error) {
     console.error(`Server: Error setting cookie ${name}:`, error);
   }
@@ -53,7 +54,8 @@ export function setServerCookie(
  */
 export function deleteServerCookie(name: string): void {
   try {
-    cookies().delete(name);
+    const cookieStore = cookies();
+    cookieStore.delete(name);
   } catch (error) {
     console.error(`Server: Error deleting cookie ${name}:`, error);
   }
@@ -63,7 +65,7 @@ export function deleteServerCookie(name: string): void {
  * Check if a token is valid for admin access
  */
 export function isValidAdminToken(token?: string): boolean {
-  return token === 'temporary-token';
+  return token === 'temporary-token' || token === 'allowed';
 }
 
 /**
@@ -79,7 +81,7 @@ export function getServerAdminToken(): string | undefined {
  * This must be used within a Server Component or Server Action
  */
 export function setServerAdminToken(): void {
-  setServerCookie('admin_token', 'temporary-token', {
+  setServerCookie('admin_token', 'allowed', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

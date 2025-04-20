@@ -15,14 +15,19 @@ interface Props {
 
 export default async function CourseExamPage({ params, searchParams }: Props) {
   // Get the exam ID from query params
-  const examId = searchParams.examId;
+  const examId = searchParams?.examId;
+  const slug = params?.slug;
   
   if (!examId) {
     notFound();
   }
   
+  if (!slug) {
+    notFound();
+  }
+  
   // Get the course to verify it exists
-  const course = await getCourseBySlug(params.slug);
+  const course = await getCourseBySlug(slug);
   
   if (!course) {
     notFound();

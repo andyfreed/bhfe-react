@@ -46,6 +46,7 @@ export default function CourseContentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'content' | 'exam'>('content');
+  const [exams, setExams] = useState<any[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -68,6 +69,16 @@ export default function CourseContentPage() {
         }
         const courseData = await courseResponse.json();
         setCourse(courseData);
+
+        // Fetch course exams
+        const examsResponse = await fetch(`/api/courses/${courseId}/exams`);
+        if (examsResponse.ok) {
+          const examsData = await examsResponse.json();
+          setExams(examsData);
+          console.log('Course exams:', examsData);
+        } else {
+          console.error('Failed to fetch exams:', examsResponse.status);
+        }
 
         // Fetch user enrollments to check if enrolled in this course
         const enrollmentsResponse = await fetch('/api/user/enrollments');
@@ -276,7 +287,7 @@ export default function CourseContentPage() {
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Course Material</h3>
                   <p className="text-gray-600 mb-4">Access the full course content in PDF format.</p>
                   
-                  {course.course_content_url ? (
+                  {course.course_content_url && !course.course_content_url.includes('error') ? (
                     <a 
                       href={course.course_content_url}
                       target="_blank"
@@ -298,7 +309,7 @@ export default function CourseContentPage() {
                   )}
                   
                   {/* Table of contents link if available */}
-                  {course.table_of_contents_url && (
+                  {course.table_of_contents_url && !course.table_of_contents_url.includes('error') ? (
                     <a 
                       href={course.table_of_contents_url}
                       target="_blank"
@@ -310,7 +321,7 @@ export default function CourseContentPage() {
                       </svg>
                       View Table of Contents
                     </a>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -326,17 +337,31 @@ export default function CourseContentPage() {
                 </p>
                 
                 <div className="flex flex-col sm:flex-row sm:space-x-4">
-                  <button
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto mb-3 sm:mb-0"
-                  >
-                    <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                    </svg>
-                    Start Exam Now
-                  </button>
+                  {exams && exams.length > 0 ? (
+                    <Link
+                      href={`/courses/${courseId}/exam?examId=${exams[0].id}`}
+                      className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto mb-3 sm:mb-0"
+                    >
+                      <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                      </svg>
+                      Start Exam Now
+                    </Link>
+                  ) : (
+                    <button
+                      disabled
+                      className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-gray-100 cursor-not-allowed w-full sm:w-auto mb-3 sm:mb-0"
+                    >
+                      <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                      </svg>
+                      No Exams Available
+                    </button>
+                  )}
                   
                   <button
                     className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 w-full sm:w-auto"
+                    disabled={!(exams && exams.length > 0)}
                   >
                     <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -345,35 +370,37 @@ export default function CourseContentPage() {
                   </button>
                 </div>
                 
-                <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Exam Information</h3>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-start">
-                      <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>10 multiple-choice questions</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>No time limit</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>70% passing score required</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>Unlimited attempts</span>
-                    </li>
-                  </ul>
-                </div>
+                {exams && exams.length > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-3">Exam Information</h3>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li className="flex items-start">
+                        <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>{exams[0].title}</span>
+                      </li>
+                      <li className="flex items-start">
+                        <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>No time limit</span>
+                      </li>
+                      <li className="flex items-start">
+                        <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>{exams[0].passing_score}% passing score required</span>
+                      </li>
+                      <li className="flex items-start">
+                        <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>Unlimited attempts</span>
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}

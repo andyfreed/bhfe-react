@@ -33,7 +33,12 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         setLoading(true);
         
         // First, check if there are any existing attempts
-        const attemptsResponse = await fetch(`/api/exams/${examId}/attempts`);
+        const attemptsResponse = await fetch(`/api/exams/${examId}/attempts`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
         
         if (!attemptsResponse.ok) {
           throw new Error('Failed to load attempts');
@@ -49,7 +54,12 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
           setAttempt(incompleteAttempt);
           
           // Load answers for this attempt
-          const attemptResponse = await fetch(`/api/exams/attempts/${incompleteAttempt.id}`);
+          const attemptResponse = await fetch(`/api/exams/attempts/${incompleteAttempt.id}`, {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
           
           if (attemptResponse.ok) {
             const { attempt, answers: attemptAnswers } = await attemptResponse.json();
@@ -67,7 +77,11 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         } else {
           // Create a new attempt
           const newAttemptResponse = await fetch(`/api/exams/${examId}/attempts`, {
-            method: 'POST'
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
           });
           
           if (!newAttemptResponse.ok) {
@@ -79,7 +93,12 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         }
         
         // Load exam details and questions
-        const examResponse = await fetch(`/api/exams/${examId}`);
+        const examResponse = await fetch(`/api/exams/${examId}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
         
         if (!examResponse.ok) {
           throw new Error('Failed to load exam');
@@ -126,6 +145,7 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           questionId,
           selectedOption: answer
@@ -180,7 +200,11 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
       
       // Submit the exam
       const response = await fetch(`/api/exams/attempts/${attempt.id}`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
       
       if (!response.ok) {

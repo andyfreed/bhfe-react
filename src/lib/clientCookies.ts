@@ -84,7 +84,7 @@ export function isValidAdminToken(token?: string): boolean {
  * Set the admin token (client-side)
  */
 export function setAdminToken(): void {
-  setCookie('admin_token', 'temporary-token', {
+  setCookie('admin_token', 'allowed', {
     path: '/',
     maxAge: 3600 * 24, // 24 hours
     sameSite: 'lax',

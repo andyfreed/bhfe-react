@@ -17,6 +17,24 @@ export async function getCourses(): Promise<Course[]> {
 
 export async function getCourseBySlug(slug: string): Promise<Course | null> {
   const supabase = await createServerSupabaseClient();
+  
+  // First try to find by ID (for UUID slugs)
+  try {
+    const { data: idData, error: idError } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('id', slug)
+      .single();
+      
+    if (!idError && idData) {
+      return idData;
+    }
+  } catch (err) {
+    // Ignore error, proceed to SKU lookup
+    console.log('Course not found by ID, trying SKU lookup');
+  }
+  
+  // Then try to find by SKU
   const { data, error } = await supabase
     .from('courses')
     .select('*')
@@ -30,6 +48,7 @@ export async function getCourseBySlug(slug: string): Promise<Course | null> {
     console.error('Error fetching course by slug:', error);
     throw error;
   }
+  
   return data;
 }
 
@@ -239,7 +258,7 @@ export async function createCourse(
     if (states.length > 0) {
       console.log("Adding states:", states);
       const statesWithCourseId = states.map(state => ({
-        state: state.state_code,  // Changed from state_code to state to match schema
+        state_code: state.state_code,  // Changed from state to state_code to match schema and updateCourse
         course_id: courseData.id
       }));
       

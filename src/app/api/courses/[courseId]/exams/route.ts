@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCourseExams, createExam } from '@/lib/exams';
-import { cookies } from 'next/headers';
+import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 
 async function verifyAuth() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('admin_token');
+    const token = getServerAdminToken();
     
-    if (!token) {
+    if (!token || !isValidAdminToken(token)) {
       console.error('Authentication failed: Admin token missing');
       throw new Error('Unauthorized');
     }
@@ -20,10 +19,13 @@ async function verifyAuth() {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: { courseId: string } | Promise<{ courseId: string }> }
 ) {
   try {
-    const courseId = params.courseId;
+    // Await the params if it's a Promise
+    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    const courseId = resolvedParams.courseId;
+    
     if (!courseId) {
       return NextResponse.json(
         { error: 'Course ID is required' },
@@ -45,13 +47,16 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: { courseId: string } | Promise<{ courseId: string }> }
 ) {
   try {
     // Check admin access
     await verifyAuth();
     
-    const courseId = params.courseId;
+    // Await the params if it's a Promise
+    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    const courseId = resolvedParams.courseId;
+    
     if (!courseId) {
       return NextResponse.json(
         { error: 'Course ID is required' },
@@ -94,7 +99,7 @@ export async function POST(
   } catch (error: any) {
     console.error('Error creating exam:', error);
     return NextResponse.json(
-      { error: 'Error creating exam' },
+      { error: 'Error creating exam', details: error.message },
       { status: error?.message === 'Unauthorized' ? 401 : 500 }
     );
   }

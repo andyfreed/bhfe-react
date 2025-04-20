@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getExamWithQuestions, updateExam, deleteExam } from '@/lib/exams';
-import { cookies } from 'next/headers';
+import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 
 async function verifyAuth() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('admin_token');
+    const token = getServerAdminToken();
     
-    if (!token || token.value !== 'temporary-token') {
-      console.error('Authentication failed: Token missing or invalid');
+    if (!token || !isValidAdminToken(token)) {
+      console.error('Authentication failed: Admin token missing');
       throw new Error('Unauthorized');
     }
-    console.log('Authentication successful');
+    console.log('Admin authentication successful');
   } catch (error) {
     console.error('Authentication error:', error);
     throw new Error('Unauthorized');
@@ -20,10 +19,12 @@ async function verifyAuth() {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { examId: string } }
+  { params }: { params: { examId: string } | Promise<{ examId: string }> }
 ) {
   try {
-    const examId = params.examId;
+    // Await the params if it's a Promise
+    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    const examId = resolvedParams.examId;
     
     if (!examId) {
       return NextResponse.json(
@@ -53,12 +54,15 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { examId: string } }
+  { params }: { params: { examId: string } | Promise<{ examId: string }> }
 ) {
   try {
     await verifyAuth();
     
-    const examId = params.examId;
+    // Await the params if it's a Promise
+    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    const examId = resolvedParams.examId;
+    
     const body = await req.json();
     
     const { title, description, passing_score, attempt_limit, questions } = body;
@@ -93,7 +97,7 @@ export async function PUT(
   } catch (error: any) {
     console.error('Error updating exam:', error);
     return NextResponse.json(
-      { error: 'Error updating exam' },
+      { error: 'Error updating exam', details: error.message },
       { status: error?.message === 'Unauthorized' ? 401 : 500 }
     );
   }
@@ -101,12 +105,14 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { examId: string } }
+  { params }: { params: { examId: string } | Promise<{ examId: string }> }
 ) {
   try {
     await verifyAuth();
     
-    const examId = params.examId;
+    // Await the params if it's a Promise
+    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    const examId = resolvedParams.examId;
     
     await deleteExam(examId);
     
