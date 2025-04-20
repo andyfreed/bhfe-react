@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase';
 import { getCourseExams, createExam } from '@/lib/exams';
 import { cookies } from 'next/headers';
 
@@ -8,11 +7,11 @@ async function verifyAuth() {
     const cookieStore = await cookies();
     const token = cookieStore.get('admin_token');
     
-    if (!token || token.value !== 'temporary-token') {
-      console.error('Authentication failed: Token missing or invalid');
+    if (!token) {
+      console.error('Authentication failed: Admin token missing');
       throw new Error('Unauthorized');
     }
-    console.log('Authentication successful');
+    console.log('Admin authentication successful');
   } catch (error) {
     console.error('Authentication error:', error);
     throw new Error('Unauthorized');
@@ -35,10 +34,10 @@ export async function GET(
     const exams = await getCourseExams(courseId);
     
     return NextResponse.json(exams);
-  } catch (error: any) {
-    console.error('Error getting course exams:', error);
+  } catch (error) {
+    console.error('Error fetching course exams:', error);
     return NextResponse.json(
-      { error: 'Error getting course exams' },
+      { error: 'Failed to fetch course exams' },
       { status: 500 }
     );
   }
@@ -62,13 +61,14 @@ export async function POST(
     
     const body = await req.json();
     
-    const { title, description, passing_score, questions } = body;
+    const { title, description, passing_score, attempt_limit, questions } = body;
     
     const examData = {
       course_id: courseId,
       title,
       description,
-      passing_score: parseInt(passing_score, 10)
+      passing_score: parseInt(passing_score, 10),
+      attempt_limit: attempt_limit === null ? null : parseInt(attempt_limit, 10)
     };
     
     const result = await createExam(examData, questions);

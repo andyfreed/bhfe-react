@@ -32,6 +32,7 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [passingScore, setPassingScore] = useState(70);
+  const [attemptLimit, setAttemptLimit] = useState<number | null>(null);
   
   // Fetch exams
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
       setTitle(data.exam.title);
       setDescription(data.exam.description);
       setPassingScore(data.exam.passing_score);
+      setAttemptLimit(data.exam.attempt_limit);
       setEditMode(true);
     } catch (err) {
       setError('Error loading exam details. Please try again.');
@@ -89,6 +91,7 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
     setTitle('');
     setDescription('');
     setPassingScore(70);
+    setAttemptLimit(null);
     setEditMode(true);
   };
   
@@ -163,6 +166,7 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
         title,
         description,
         passing_score: passingScore,
+        attempt_limit: attemptLimit,
         questions: examQuestions.map(q => ({
           question_text: q.question_text,
           option_a: q.option_a,
@@ -265,95 +269,108 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
   }
   
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Course Exams</h2>
-        {!editMode && (
-          <Button onClick={createNewExam}>
-            <PlusCircle className="w-4 h-4 mr-2" /> Create New Exam
-          </Button>
-        )}
-      </div>
-      
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold">Exam Management</h2>
+
+      {loading && <div className="p-4 text-center">Loading...</div>}
+
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       {success && (
-        <Alert variant="success">
+        <Alert>
           <AlertTitle>Success</AlertTitle>
           <AlertDescription>{success}</AlertDescription>
         </Alert>
       )}
-      
+
       {!editMode ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <>
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold">Exams</h3>
+            <Button onClick={createNewExam}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create New Exam
+            </Button>
+          </div>
+
           {exams.length === 0 ? (
-            <div className="col-span-2 text-center py-8 bg-slate-50 rounded-lg">
-              <p>No exams have been created for this course yet.</p>
-              <Button onClick={createNewExam} className="mt-4">
-                <PlusCircle className="w-4 h-4 mr-2" /> Create your first exam
-              </Button>
+            <div className="p-4 text-center text-gray-500">
+              No exams found. Create one to get started.
             </div>
           ) : (
-            exams.map(exam => (
-              <Card key={exam.id} className="p-4">
-                <h3 className="text-lg font-bold">{exam.title}</h3>
-                <p className="text-sm text-gray-600 mt-1 mb-3">{exam.description}</p>
-                <p className="text-sm">Passing Score: {exam.passing_score}%</p>
-                
-                <div className="flex mt-4 space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => loadExam(exam.id)}
-                  >
-                    <Edit className="w-4 h-4 mr-1" /> Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => deleteExam(exam.id)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" /> Delete
-                  </Button>
-                </div>
-              </Card>
-            ))
+            <div className="grid gap-4">
+              {exams.map((exam) => (
+                <Card key={exam.id} className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-lg font-semibold">{exam.title}</h4>
+                      <p className="text-sm text-gray-600">
+                        Passing Score: {exam.passing_score}%
+                      </p>
+                      {exam.attempt_limit && (
+                        <p className="text-sm text-gray-600">
+                          Attempt Limit: {exam.attempt_limit}
+                        </p>
+                      )}
+                      <p className="mt-2">{exam.description}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadExam(exam.id)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteExam(exam.id)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           )}
-        </div>
+        </>
       ) : (
-        <div className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-xl font-bold mb-4">
-              {currentExam ? 'Edit Exam' : 'Create New Exam'}
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title">Exam Title</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="Enter exam title"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Enter exam description"
-                  rows={3}
-                />
-              </div>
-              
+        <Card className="p-6">
+          <h3 className="text-xl font-semibold mb-4">
+            {currentExam ? 'Edit Exam' : 'Create New Exam'}
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="exam-title">Exam Title *</Label>
+              <Input
+                id="exam-title"
+                placeholder="Enter exam title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="exam-description">Description</Label>
+              <Textarea
+                id="exam-description"
+                placeholder="Enter exam description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="passingScore">Passing Score (%)</Label>
                 <Input
@@ -365,120 +382,35 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
                   onChange={e => setPassingScore(parseInt(e.target.value))}
                 />
               </div>
+              
+              <div>
+                <Label htmlFor="attemptLimit">
+                  Attempt Limit (leave empty for unlimited)
+                </Label>
+                <Input
+                  id="attemptLimit"
+                  type="number"
+                  min="1"
+                  value={attemptLimit === null ? '' : attemptLimit}
+                  onChange={e => {
+                    const value = e.target.value.trim();
+                    setAttemptLimit(value === '' ? null : parseInt(value));
+                  }}
+                  placeholder="Unlimited attempts"
+                />
+              </div>
             </div>
-          </Card>
-          
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold">Questions</h3>
-              <Button onClick={addQuestion} variant="outline">
-                <PlusCircle className="w-4 h-4 mr-2" /> Add Question
+
+            <div className="flex justify-end space-x-3">
+              <Button variant="outline" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <Button onClick={saveExam} disabled={loading}>
+                <Save className="w-4 h-4 mr-2" /> Save Exam
               </Button>
             </div>
-            
-            {examQuestions.length === 0 ? (
-              <Card className="p-6 text-center">
-                <p>No questions added yet. Add your first question to get started.</p>
-                <Button onClick={addQuestion} className="mt-4">
-                  <PlusCircle className="w-4 h-4 mr-2" /> Add Question
-                </Button>
-              </Card>
-            ) : (
-              examQuestions.map((question, index) => (
-                <Card key={question.id} className="p-6">
-                  <div className="flex justify-between">
-                    <h4 className="text-lg font-bold">Question {index + 1}</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeQuestion(index)}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-4 mt-4">
-                    <div>
-                      <Label htmlFor={`question-${index}`}>Question</Label>
-                      <Textarea
-                        id={`question-${index}`}
-                        value={question.question_text}
-                        onChange={e => updateQuestion(index, 'question_text', e.target.value)}
-                        placeholder="Enter question text"
-                        rows={2}
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor={`option-a-${index}`}>Option A</Label>
-                        <Input
-                          id={`option-a-${index}`}
-                          value={question.option_a}
-                          onChange={e => updateQuestion(index, 'option_a', e.target.value)}
-                          placeholder="Option A"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor={`option-b-${index}`}>Option B</Label>
-                        <Input
-                          id={`option-b-${index}`}
-                          value={question.option_b}
-                          onChange={e => updateQuestion(index, 'option_b', e.target.value)}
-                          placeholder="Option B"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor={`option-c-${index}`}>Option C</Label>
-                        <Input
-                          id={`option-c-${index}`}
-                          value={question.option_c}
-                          onChange={e => updateQuestion(index, 'option_c', e.target.value)}
-                          placeholder="Option C"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor={`option-d-${index}`}>Option D</Label>
-                        <Input
-                          id={`option-d-${index}`}
-                          value={question.option_d}
-                          onChange={e => updateQuestion(index, 'option_d', e.target.value)}
-                          placeholder="Option D"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor={`correct-${index}`}>Correct Answer</Label>
-                      <Select
-                        id={`correct-${index}`}
-                        value={question.correct_option}
-                        onChange={e => updateQuestion(index, 'correct_option', e.target.value)}
-                      >
-                        <option value="a">Option A</option>
-                        <option value="b">Option B</option>
-                        <option value="c">Option C</option>
-                        <option value="d">Option D</option>
-                      </Select>
-                    </div>
-                  </div>
-                </Card>
-              ))
-            )}
           </div>
-          
-          <div className="flex justify-end space-x-3">
-            <Button variant="outline" onClick={cancelEdit}>
-              Cancel
-            </Button>
-            <Button onClick={saveExam} disabled={loading}>
-              <Save className="w-4 h-4 mr-2" /> Save Exam
-            </Button>
-          </div>
-        </div>
+        </Card>
       )}
     </div>
   );

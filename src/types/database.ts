@@ -20,6 +20,7 @@ export interface Exam {
   title: string;
   description: string;
   passing_score: number; // Percentage needed to pass (e.g., 70 means 70%)
+  attempt_limit: number | null; // Maximum number of attempts allowed (null means unlimited)
   created_at: string;
 }
 

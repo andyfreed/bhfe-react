@@ -61,12 +61,13 @@ export async function PUT(
     const examId = params.examId;
     const body = await req.json();
     
-    const { title, description, passing_score, questions } = body;
+    const { title, description, passing_score, attempt_limit, questions } = body;
     
     const examData = {
       title,
       description,
-      passing_score: parseInt(passing_score, 10)
+      passing_score: parseInt(passing_score, 10),
+      attempt_limit: attempt_limit === null ? null : parseInt(attempt_limit, 10)
     };
     
     const result = await updateExam(examId, examData, questions);
