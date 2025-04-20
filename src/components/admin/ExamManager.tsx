@@ -200,7 +200,9 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
       }
       
       if (!response.ok) {
-        throw new Error('Failed to save exam');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error response:', errorData);
+        throw new Error(errorData.error || 'Failed to save exam');
       }
       
       const savedExam = await response.json();
@@ -215,9 +217,9 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
       setSuccess('Exam saved successfully');
       setEditMode(false);
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError('Error saving exam. Please try again.');
-      console.error(err);
+    } catch (err: any) {
+      console.error('Save exam error:', err);
+      setError(err.message || 'Error saving exam. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -391,7 +393,7 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
                   id="attemptLimit"
                   type="number"
                   min="1"
-                  value={attemptLimit === null ? '' : attemptLimit}
+                  value={attemptLimit === null || attemptLimit === undefined ? '' : attemptLimit}
                   onChange={e => {
                     const value = e.target.value.trim();
                     setAttemptLimit(value === '' ? null : parseInt(value));

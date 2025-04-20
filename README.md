@@ -85,11 +85,12 @@ Key migrations include:
 
 1. Creating user_enrollments table (`src/db/migrations/user_enrollments.sql`)
 2. Adding image_url to courses (`src/db/migrations/add_image_url_to_courses.sql`)
+3. Adding attempt limits to exams (`src/db/migrations/add_attempt_limit_to_exams.sql`)
 
 To apply a single migration using our utility script:
 
 ```bash
-node scripts/apply-migration.js src/db/migrations/add_image_url_to_courses.sql
+node scripts/apply-migration.js src/db/migrations/add_attempt_limit_to_exams.sql
 ```
 
 Remember to run migrations in order as some might depend on previous ones.

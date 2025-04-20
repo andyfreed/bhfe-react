@@ -63,6 +63,23 @@ export async function PUT(
     
     const { title, description, passing_score, attempt_limit, questions } = body;
     
+    // Validate required fields
+    if (!title?.trim()) {
+      return NextResponse.json(
+        { error: 'Exam title is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate attempt_limit (must be a positive number or null)
+    if (attempt_limit !== null && attempt_limit !== undefined && 
+        (isNaN(Number(attempt_limit)) || Number(attempt_limit) < 1)) {
+      return NextResponse.json(
+        { error: 'Attempt limit must be a positive number or left empty for unlimited attempts' },
+        { status: 400 }
+      );
+    }
+    
     const examData = {
       title,
       description,
