@@ -4,14 +4,14 @@ import { useState, useEffect, use } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Course, CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 import ExamManager from '@/components/admin/ExamManager';
-import Input from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import axios from 'axios';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useRenderOnce } from '@/hooks/useRenderOnce';
 import MainLayout from '@/components/layouts/MainLayout';
 import { Heading } from '@/components/ui/heading';
-import Select from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 
 const initialCourseState: Omit<Course, 'id' | 'created_at'> & {
   formats: CourseFormatEntry[];
