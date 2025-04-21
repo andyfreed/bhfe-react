@@ -2,340 +2,512 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import CreateUserForm from '@/components/admin/CreateUserForm';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { RefreshCw, Settings, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Alert } from '@/components/ui/alert';
 
-// Define interfaces for data structures
-interface UserProfile {
+// Define the User type
+interface User {
   id: string;
-  role: string;
-  full_name: string;
-  email: string;
-  company: string;
-  phone: string;
-  created_at: string;
-  updated_at: string;
-  enrollmentCount: number;
+  email?: string;
+  full_name?: string;
+  role?: string;
+  company?: string;
+  phone?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Create a simple AdminUsersSection component
-function AdminUsersSection({ 
-  users, 
-  isLoading,
-  hasError,
-  error,
-  onUserCreated
-}: { 
-  users: UserProfile[]; 
-  isLoading: boolean;
-  hasError: boolean;
-  error: string | null;
-  onUserCreated: (newUser: UserProfile) => void;
-}) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>(users);
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
-
-  // Update filtered users when search term or users change
-  useEffect(() => {
-    if (!searchTerm) {
-      setFilteredUsers(users);
-      return;
-    }
-
-    const lowerCaseSearch = searchTerm.toLowerCase();
-    const filtered = users.filter(user => 
-      (user.full_name && user.full_name.toLowerCase().includes(lowerCaseSearch)) ||
-      (user.email && user.email.toLowerCase().includes(lowerCaseSearch))
-    );
-    setFilteredUsers(filtered);
-  }, [searchTerm, users]);
-
-  const numTotalUsers = users.length;
-  const numAdminUsers = users.filter(user => user.role === 'admin').length;
-  const numUsersWithEnrollments = users.filter(user => user.enrollmentCount > 0).length;
-
-  if (isLoading) {
-    return (
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-bold">Admin Users</h1>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-bold">Admin Users</h1>
-        </div>
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-          {error && error.includes('permission') && (
-            <div className="mt-4">
-              <Link href="/auth/login" className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                Login as Admin
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4">
-      {hasError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold">Admin Users</h1>
-        <button
-          onClick={() => setIsCreatingUser(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded inline-flex items-center"
-        >
-          <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          Create User
-        </button>
-      </div>
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-blue-100 p-4 rounded">
-          <h2 className="font-bold">Total Users</h2>
-          <p className="text-2xl">{numTotalUsers}</p>
-        </div>
-        <div className="bg-green-100 p-4 rounded">
-          <h2 className="font-bold">Admin Users</h2>
-          <p className="text-2xl">{numAdminUsers}</p>
-        </div>
-        <div className="bg-purple-100 p-4 rounded">
-          <h2 className="font-bold">Users with Enrollments</h2>
-          <p className="text-2xl">{numUsersWithEnrollments}</p>
-        </div>
-      </div>
-      
-      {/* Search input */}
-      <div className="mb-4">
-        <label htmlFor="user-search" className="block text-sm font-medium text-gray-700 mb-1">
-          Search users by name or email
-        </label>
-        <div className="relative rounded-md shadow-sm">
-          <input
-            type="text"
-            id="user-search"
-            className="block w-full pr-10 border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Enter name or email"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-          </div>
-        </div>
-        <p className="mt-1 text-sm text-gray-500">
-          {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} found
-        </p>
-      </div>
-      
-      <div className="bg-white rounded shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollments</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredUsers.map(user => (
-              <tr key={user.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.id.substring(0, 8)}...</td>
-                <td className="px-6 py-4 whitespace-nowrap">{user.full_name || 'Not set'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{user.email || 'Not set'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{user.company || 'Not set'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{new Date(user.created_at).toLocaleDateString()}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{user.enrollmentCount}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${user.role === 'admin' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Link 
-                    href={`/admin/users/${user.id}`} 
-                    className="text-indigo-600 hover:text-indigo-900"
-                  >
-                    Manage
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isCreatingUser && (
-        <CreateUserForm 
-          onCancel={() => setIsCreatingUser(false)} 
-          onSuccess={(userData: any) => {
-            // Transform the API response to match the UserProfile type
-            const newUser: UserProfile = {
-              id: userData.id,
-              email: userData.email,
-              role: userData.role || 'user',
-              full_name: userData.full_name || '',
-              company: userData.company || '',
-              phone: userData.phone || '',
-              created_at: userData.created_at || new Date().toISOString(),
-              updated_at: userData.updated_at || userData.created_at || new Date().toISOString(),
-              enrollmentCount: 0
-            };
-            onUserCreated(newUser);
-            setIsCreatingUser(false);
-          }} 
-        />
-      )}
-    </div>
-  );
+// For development testing purposes
+function isDevMode() {
+  return process.env.NODE_ENV === 'development';
 }
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-
-  // Direct login function for development/testing
-  const handleDirectAdminLogin = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch('/api/admin/bypass-auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ secret: 'admin-dev-bypass' }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to authenticate');
-      }
-      
-      setIsAdmin(true);
-      fetchUsers();
-    } catch (err: any) {
-      console.error('Error authenticating:', err);
-      setError(err.message || 'Failed to authenticate');
-    } finally {
-      setIsLoading(false);
+  
+  // User management state
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Filter and search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  
+  // Filtered and paginated data
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = 
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      user.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesRole = 
+      roleFilter === "all" || 
+      user.role?.toLowerCase() === roleFilter.toLowerCase();
+    
+    return matchesSearch && matchesRole;
+  });
+  
+  const totalFilteredItems = filteredUsers.length;
+  const totalFilteredPages = Math.max(1, Math.ceil(totalFilteredItems / itemsPerPage));
+  
+  // Ensure current page is valid after filtering
+  useEffect(() => {
+    if (currentPage > totalFilteredPages) {
+      setCurrentPage(totalFilteredPages);
     }
-  };
+  }, [totalFilteredPages, currentPage]);
+  
+  const currentItems = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const fetchUsers = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch('/api/users');
-      
-      if (response.status === 401) {
-        setError('You do not have permission to access this page. Please log in as an admin user.');
-        setUsers([]);
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      // Extract the users array from the response
-      setUsers(data.users || []);
-      setError(null);
-    } catch (err: any) {
-      console.error('Error fetching users:', err);
-      setError(err.message || 'An error occurred while fetching users');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUserCreated = (newUser: UserProfile) => {
-    // Add the new user to the list
-    setUsers([
-      newUser,
-      ...users
-    ]);
+    setLoading(true);
     setError(null);
+    try {
+      const response = await fetch("/api/users");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      
+      // Ensure data is an array
+      const usersArray = Array.isArray(data) ? data : (data.data || data.users || []);
+      console.log('API response:', data);
+      console.log('Processed users array:', usersArray);
+      
+      setUsers(usersArray);
+      setTotalPages(Math.max(1, Math.ceil(usersArray.length / itemsPerPage)));
+    } catch (err) {
+      setError(`Failed to fetch users: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  if (error && error.includes('permission')) {
-    return (
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-bold">Admin Users</h1>
+  const handleManageUser = (user: User) => {
+    setSelectedUser(user);
+    setIsManageDialogOpen(true);
+  };
+
+  const handleResetPassword = (user: User) => {
+    setSelectedUser(user);
+    setResetEmail(user.email || "");
+    setIsResetDialogOpen(true);
+  };
+  
+  const handleDeleteUser = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmResetPassword = async () => {
+    if (!selectedUser?.id) return;
+    setResetLoading(true);
+    
+    try {
+      const response = await fetch(`/api/users/${selectedUser.id}/password-reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      alert("Password reset link sent successfully");
+      setIsResetDialogOpen(false);
+      
+    } catch (err) {
+      alert(`Failed to send reset link: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("Error resetting password:", err);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+  
+  const confirmDeleteUser = async () => {
+    if (!selectedUser?.id) return;
+    setDeleteLoading(true);
+    
+    try {
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      alert("User deleted successfully");
+      fetchUsers(); // Refresh user list
+      setIsDeleteDialogOpen(false);
+      
+    } catch (err) {
+      alert(`Failed to delete user: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("Error deleting user:", err);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleProfileUpdateSuccess = () => {
+    fetchUsers(); // Refresh user list
+    setIsManageDialogOpen(false);
+    alert("User updated successfully");
+  };
+
+  return (
+    <div className="container px-4 py-8">
+      <h1 className="mb-6 text-2xl font-bold">User Management</h1>
+      
+      {error && (
+        <div className="p-4 mb-4 border border-red-500 bg-red-100 text-red-700 rounded">
+          <AlertCircle className="h-4 w-4 inline mr-2" />
+          <span className="font-bold">Error:</span> {error}
         </div>
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-          <div className="mt-4 flex space-x-4">
-            <Link href="/auth/login" className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-              Login as Admin
-            </Link>
-            <button 
-              onClick={handleDirectAdminLogin}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+      )}
+      
+      <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 mb-4">
+        <Button
+          onClick={fetchUsers}
+          disabled={loading}
+          className="flex items-center"
+        >
+          {loading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Refresh Users
+        </Button>
+        
+        <div className="flex-1 flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
+          <Input
+            placeholder="Search by name or email"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="md:max-w-xs"
+          />
+          
+          <select
+            className="h-10 rounded-md border border-input bg-background px-3 py-2"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="all">All Roles</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+          
+          <div className="flex items-center space-x-2 ml-auto">
+            <span className="text-sm text-gray-500">Items per page:</span>
+            <select
+              className="h-10 rounded-md border border-input bg-background px-3 py-2"
+              value={itemsPerPage.toString()}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
             >
-              Development Login
-            </button>
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
           </div>
         </div>
       </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-bold">Admin Users</h1>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
+      
+      <div className="border rounded-md">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="text-left p-3">Email</th>
+              <th className="text-left p-3">Name</th>
+              <th className="text-left p-3">Role</th>
+              <th className="text-right p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentItems.length > 0 ? (
+              currentItems.map((user) => (
+                <tr key={user.id} className="border-t hover:bg-gray-50">
+                  <td className="p-3 font-medium">{user.email}</td>
+                  <td className="p-3">{user.full_name || "—"}</td>
+                  <td className="p-3">
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                      user.role === "admin" 
+                        ? "bg-purple-100 text-purple-800" 
+                        : "bg-blue-100 text-blue-800"
+                    }`}>
+                      {user.role || "user"}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleManageUser(user)}
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        Manage
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResetPassword(user)}
+                      >
+                        <svg className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M15 7a2 2 0 0 1 2 2m4 0a6 6 0 0 1-6 6h-2 M9 17a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2M5 7v6M8 5 5 7l-3 2"></path>
+                        </svg>
+                        Reset
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteUser(user)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="h-24 text-center">
+                  {loading ? (
+                    <div className="flex justify-center items-center">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      Loading users...
+                    </div>
+                  ) : (
+                    "No users found."
+                  )}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-    );
-  }
-
-  return (
-    <AdminUsersSection 
-      users={users} 
-      isLoading={isLoading} 
-      hasError={!!error && !error.includes('permission')} 
-      error={error}
-      onUserCreated={handleUserCreated}
-    />
+      
+      {filteredUsers.length > 0 && (
+        <div className="flex items-center justify-between space-x-2 py-4">
+          <div className="text-sm text-gray-500">
+            Showing {(currentPage - 1) * itemsPerPage + 1}-
+            {Math.min(currentPage * itemsPerPage, totalFilteredItems)} of {totalFilteredItems} users
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              <span className="sr-only">First page</span>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m11 17-5-5 5-5M17 17l-5-5 5-5"></path>
+              </svg>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              <span className="sr-only">Previous page</span>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m15 18-6-6 6-6"></path>
+              </svg>
+            </Button>
+            
+            <div className="text-sm">
+              Page {currentPage} of {totalFilteredPages}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.min(totalFilteredPages, prev + 1))}
+              disabled={currentPage === totalFilteredPages}
+            >
+              <span className="sr-only">Next page</span>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m9 18 6-6-6-6"></path>
+              </svg>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(totalFilteredPages)}
+              disabled={currentPage === totalFilteredPages}
+            >
+              <span className="sr-only">Last page</span>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m13 17 5-5-5-5M7 17l5-5-5-5"></path>
+              </svg>
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Manage User Dialog */}
+      {selectedUser && isManageDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium">Manage User Profile</h3>
+              <p className="text-sm text-gray-500">
+                Edit user details for {selectedUser.email}
+              </p>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleProfileUpdateSuccess();
+            }}>
+              <div className="space-y-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <Input
+                    type="email"
+                    value={selectedUser.email || ""}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Full Name</label>
+                  <Input
+                    type="text"
+                    defaultValue={selectedUser.full_name || ""}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Role</label>
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
+                    defaultValue={selectedUser.role || "user"}
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsManageDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Reset Password Dialog */}
+      {selectedUser && isResetDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium">Reset User Password</h3>
+              <p className="text-sm text-gray-500">
+                This will send a password reset link to the user's email.
+                Confirm the email address below:
+              </p>
+              <Input
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsResetDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={resetLoading || !resetEmail}
+                onClick={confirmResetPassword}
+              >
+                {resetLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Send Reset Link
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete User Dialog */}
+      {selectedUser && isDeleteDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium">Delete User</h3>
+              <p className="text-sm text-gray-500">
+                Are you sure you want to delete the user {selectedUser.email}?
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={deleteLoading}
+                onClick={confirmDeleteUser}
+              >
+                {deleteLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Delete User
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 } 

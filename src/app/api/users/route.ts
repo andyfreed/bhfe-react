@@ -42,48 +42,65 @@ interface FormattedUser {
   enrollmentCount: number;
 }
 
-// Verify authentication
+// Type for query parameters
+interface UserQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  hasEnrollments?: boolean;
+  createdAfter?: string;
+  createdBefore?: string;
+}
+
+// Verify admin authorization
 async function verifyAuth(supabase: SupabaseClient) {
-  console.log('Starting auth verification...');
-  
-  // Check for development bypass
+  // Allow everything in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('Running in development mode - allowing admin access for development');
     return true;
   }
-  
+
   try {
-    // Try to get user from Supabase auth cookie
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.log('Session error:', sessionError.message);
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session?.user) {
       return false;
     }
-    
-    if (!session || !session.user) {
-      console.log('No session or user found');
+
+    const userId = data.session.user.id;
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !profile) {
       return false;
     }
-    
-    const userId = session.user.id;
-    console.log('User found with ID:', userId);
-    
-    // Since there's no role column in the database, we'll check against a list of admin emails
-    // This is a workaround since your database doesn't have a role column
-    const adminEmails = [
-      'admin@example.com',
-      // Add any other admin emails here
-    ];
-    
-    const isAdmin = adminEmails.includes(session.user.email || '');
-    console.log('Is user admin based on email check?', isAdmin);
-    
-    return isAdmin;
-  } catch (error: any) {
-    console.error('Auth verification error:', error.message);
+
+    return profile.role === 'admin';
+  } catch (error) {
+    console.error('Auth error:', error);
     return false;
   }
+}
+
+// Parse query parameters from request URL
+function parseQueryParams(request: NextRequest): UserQueryParams {
+  const url = new URL(request.url);
+  
+  return {
+    page: parseInt(url.searchParams.get('page') || '1'),
+    limit: Math.min(parseInt(url.searchParams.get('limit') || '50'), 100), // Cap at 100
+    search: url.searchParams.get('search') || undefined,
+    role: url.searchParams.get('role') || undefined,
+    sortBy: url.searchParams.get('sortBy') || 'created_at',
+    sortOrder: (url.searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc',
+    hasEnrollments: url.searchParams.get('hasEnrollments') === 'true',
+    createdAfter: url.searchParams.get('createdAfter') || undefined,
+    createdBefore: url.searchParams.get('createdBefore') || undefined
+  };
 }
 
 // GET: Retrieve all users
@@ -125,11 +142,50 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Fetch users with profiles
-    console.log('Fetching users...');
-    const usersResponse = await supabase
+    // Parse query parameters
+    const queryParams = parseQueryParams(request);
+    console.log('Query parameters:', queryParams);
+    
+    // Calculate pagination values
+    const page = Math.max(1, queryParams.page || 1);
+    const limit = Math.min(100, Math.max(10, queryParams.limit || 50));
+    const offset = (page - 1) * limit;
+    
+    // Start building the query
+    let usersQuery = supabase
       .from('users')
-      .select('id, email, created_at, updated_at');
+      .select('id, email, created_at, updated_at, role', { count: 'exact' });
+    
+    // Apply filters
+    if (queryParams.search) {
+      usersQuery = usersQuery.or(`email.ilike.%${queryParams.search}%,id.eq.${queryParams.search}`);
+    }
+    
+    if (queryParams.role) {
+      usersQuery = usersQuery.eq('role', queryParams.role);
+    }
+    
+    if (queryParams.createdAfter) {
+      usersQuery = usersQuery.gte('created_at', queryParams.createdAfter);
+    }
+    
+    if (queryParams.createdBefore) {
+      usersQuery = usersQuery.lte('created_at', queryParams.createdBefore);
+    }
+    
+    // Apply pagination after all filters
+    const countQuery = usersQuery;
+    
+    // Apply sorting and pagination
+    usersQuery = usersQuery
+      .order(queryParams.sortBy || 'created_at', { 
+        ascending: queryParams.sortOrder === 'asc' 
+      })
+      .range(offset, offset + limit - 1);
+    
+    // Execute the query to get paginated users
+    console.log('Fetching paginated users...');
+    const usersResponse = await usersQuery;
     
     if (usersResponse.error) {
       console.error('Error fetching users:', usersResponse.error);
@@ -139,33 +195,61 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const users = usersResponse.data;
-    console.log(`Retrieved ${users?.length || 0} users`);
+    // Get the total count of users matching the filters (without pagination)
+    const { count } = await countQuery;
+    const totalUsers = count || 0;
     
-    // Fetch enrollments for enrollment counts
+    const users = usersResponse.data || [];
+    console.log(`Retrieved ${users.length} users (page ${page} of ${Math.ceil(totalUsers / limit)})`);
+    
+    // Get user IDs for additional data fetching
+    const userIds = users.map(user => user.id);
+    
+    // Fetch profiles for the users in this page
+    console.log('Fetching user profiles...');
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, role, full_name, company, phone')
+      .in('id', userIds);
+    
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+    
+    // Create a map for quick profile lookups
+    const profiles: Record<string, any> = {};
+    if (profilesData) {
+      profilesData.forEach(profile => {
+        profiles[profile.id] = profile;
+      });
+    }
+    
+    // Fetch enrollments for enrollment counts - only for the users in this page
     console.log('Fetching enrollments...');
-    const enrollmentsResponse = await supabase
+    let enrollmentsQuery = supabase
       .from('enrollments')
-      .select('id, user_id, course_id, created_at');
+      .select('user_id, course_id')
+      .in('user_id', userIds);
+    
+    if (queryParams.hasEnrollments) {
+      // We'll filter users with enrollments later, but add this to the query
+      // to optimize by fetching only enrollments for users that have them
+      enrollmentsQuery = enrollmentsQuery.gt('course_id', 0); 
+    }
+    
+    const enrollmentsResponse = await enrollmentsQuery;
     
     if (enrollmentsResponse.error) {
       console.error('Error fetching enrollments:', enrollmentsResponse.error);
-      return NextResponse.json(
-        { error: `Failed to fetch enrollments: ${enrollmentsResponse.error.message}` },
-        { status: 500 }
-      );
     }
-    
-    const enrollments = enrollmentsResponse.data;
-    console.log(`Retrieved ${enrollments?.length || 0} enrollments`);
     
     // Count enrollments per user
     const enrollmentCounts: Record<string, number> = {};
     
-    if (enrollments) {
+    if (enrollmentsResponse.data) {
       // Process enrollments and count per user
-      enrollments.forEach(enrollment => {
-        if (enrollment && enrollment.user_id) {
+      enrollmentsResponse.data.forEach(enrollment => {
+        if (enrollment.user_id) {
           enrollmentCounts[enrollment.user_id] = (enrollmentCounts[enrollment.user_id] || 0) + 1;
         }
       });
@@ -173,31 +257,37 @@ export async function GET(request: NextRequest) {
     
     // Format user data
     console.log('Formatting user data...');
-    const formattedUsers: FormattedUser[] = [];
+    let formattedUsers: FormattedUser[] = [];
     
-    if (users && Array.isArray(users)) {
-      users.forEach(user => {
-        if (user && typeof user === 'object' && 'id' in user) {
-          formattedUsers.push({
-            id: user.id,
-            email: user.email,
-            role: 'user', // Default role since role column doesn't exist
-            full_name: '', // No profile data available
-            company: '',   // No profile data available
-            phone: '',     // No profile data available
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-            enrollmentCount: enrollmentCounts[user.id] || 0
-          });
-        }
+    users.forEach(user => {
+      const profile = profiles[user.id] || {};
+      const enrollmentCount = enrollmentCounts[user.id] || 0;
+      
+      // Apply enrollment filter if specified
+      if (queryParams.hasEnrollments && enrollmentCount === 0) {
+        return; // Skip users with no enrollments if that filter is active
+      }
+      
+      formattedUsers.push({
+        id: user.id,
+        email: user.email,
+        role: profile.role || user.role || 'user', // Use role from profile or user table
+        full_name: profile.full_name || '',
+        company: profile.company || '',
+        phone: profile.phone || '',
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        enrollmentCount: enrollmentCount
       });
-    }
+    });
+    
+    // If we applied the enrollments filter after fetching, we need to adjust pagination info
+    const filteredTotal = queryParams.hasEnrollments 
+      ? formattedUsers.length + ((page - 1) * limit) // Estimated total with filter
+      : totalUsers;
     
     console.log('Returning formatted data for', formattedUsers.length, 'users');
-    return NextResponse.json({
-      users: formattedUsers,
-      total: formattedUsers.length
-    });
+    return NextResponse.json(formattedUsers);
   } catch (error: any) {
     console.error('Server error:', error);
     // Return detailed error information to help debugging
@@ -214,9 +304,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new user
 export async function POST(request: NextRequest) {
-  const headersList = headers();
-  
   try {
+    console.log('Creating new user...');
+    
     // Initialize Supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -246,7 +336,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Parse request body
-    const { email, password, full_name, company, phone, role } = await request.json();
+    const body = await request.json();
+    const { email, password, full_name, company, phone, role } = body;
+    
+    console.log('Creating user with email:', email);
     
     // Validate required fields
     if (!email || !password) {
@@ -264,24 +357,44 @@ export async function POST(request: NextRequest) {
     });
     
     if (createError) {
+      console.error('Error creating user in auth system:', createError);
       return NextResponse.json(
         { error: `Failed to create user: ${createError.message}` },
         { status: 500 }
       );
     }
     
-    if (!userData.user) {
+    if (!userData?.user?.id) {
+      console.error('User created but no ID returned');
       return NextResponse.json(
-        { error: 'Failed to create user' },
+        { error: 'Failed to create user - no ID returned' },
         { status: 500 }
       );
+    }
+    
+    const userId = userData.user.id;
+    console.log('User created with ID:', userId);
+    
+    // Also add to users table for backup
+    const { error: userInsertError } = await supabase
+      .from('users')
+      .insert({
+        id: userId,
+        email: email,
+        role: role || 'user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      
+    if (userInsertError) {
+      console.warn('Failed to insert into users table:', userInsertError.message);
     }
     
     // Create profile
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
-        id: userData.user.id, // Use the user ID as profile ID
+        id: userId, // Use the user ID as profile ID
         full_name,
         company,
         phone,
@@ -295,7 +408,14 @@ export async function POST(request: NextRequest) {
       // We've already created the user, so return partial success
       return NextResponse.json(
         {
-          user: userData.user,
+          id: userId,
+          email: email,
+          role: role || 'user',
+          full_name: full_name || '',
+          company: company || '',
+          phone: phone || '',
+          created_at: userData.user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           warning: 'User created, but profile data could not be saved'
         },
         { status: 201 }
@@ -305,13 +425,14 @@ export async function POST(request: NextRequest) {
     // Return the new user with profile data
     return NextResponse.json(
       {
-        id: userData.user.id,
-        email: userData.user.email,
+        id: userId,
+        email: email,
         role: role || 'user',
-        full_name,
-        company,
-        phone,
-        created_at: userData.user.created_at
+        full_name: full_name || '',
+        company: company || '',
+        phone: phone || '',
+        created_at: userData.user.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
       },
       { status: 201 }
     );

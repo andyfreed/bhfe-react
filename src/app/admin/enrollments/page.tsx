@@ -186,8 +186,23 @@ export default function AdminEnrollmentsPage() {
         }
         
         const usersData = await usersResponse.json();
-        if (Array.isArray(usersData) && usersData.length > 0) {
-          setUsers(usersData);
+        console.log('Users API response:', usersData);
+        
+        let usersArray = [];
+        // Check different possible response formats
+        if (Array.isArray(usersData)) {
+          usersArray = usersData;
+        } else if (usersData.users && Array.isArray(usersData.users)) {
+          usersArray = usersData.users;
+        } else if (typeof usersData === 'object') {
+          // If it's not an array, but an object with data
+          usersArray = Array.isArray(usersData.data) ? usersData.data : [usersData];
+        }
+        
+        console.log('Processed users array:', usersArray);
+        
+        if (usersArray.length > 0) {
+          setUsers(usersArray);
         }
       } catch (error) {
         console.error('Error fetching users:', error);
