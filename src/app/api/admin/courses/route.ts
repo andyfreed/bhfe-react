@@ -6,7 +6,7 @@ import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 async function verifyAdminAuth() {
   try {
     // Check for admin token
-    const adminToken = getServerAdminToken();
+    const adminToken = await getServerAdminToken();
     
     // For development convenience
     if (
@@ -45,11 +45,11 @@ export async function GET(request: NextRequest) {
     const supabase = createServerSupabaseClient();
     
     // Fetch all courses with pagination
-    const { data, error, count } = await supabase
+    const { data, error, count } = await (supabase
       .from('courses')
-      .select('id, title, main_subject, description, price, status', { count: 'exact' })
+      .select('id, title, main_subject, description', { count: 'exact' })
       .order('title', { ascending: true })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + limit - 1) as any);
     
     if (error) {
       console.error('Error fetching courses:', error);

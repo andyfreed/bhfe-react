@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
+import { cookies } from 'next/headers';
 
 // Verify authentication and admin status
 async function verifyAdminAuth() {
+  // Allow everything in development
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+
   try {
-    const adminToken = await getServerAdminToken();
-    if (
-      process.env.NODE_ENV === 'development' ||
-      (adminToken && (isValidAdminToken(adminToken) || adminToken === 'super-secure-admin-token-for-development'))
-    ) {
-      return true;
-    }
-    return false;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('admin_token')?.value;
+    return isValidAdminToken(token);
   } catch (error) {
     console.error('Error verifying admin auth:', error);
     return false;
@@ -32,30 +33,59 @@ function createAdminSupabase() {
 // GET user
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
   try {
     if (!(await verifyAdminAuth())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: userId } = await params;
+    // Safely resolve params which can be a Promise in Next 15
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const userId = resolvedParams.id;
 
     const supabase = createAdminSupabase();
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-    if (userError) {
-      return NextResponse.json({ error: `Failed to fetch user: ${userError.message}` }, { status: 500 });
+    let authUser = userData.user;
+
+    // If auth lookup failed with "User not found", fall back to public.users table
+    if (userError || !authUser) {
+      const { data: fallbackUser, error: fallbackError } = await supabase
+        .from('users')
+        .select('id, email, created_at, updated_at')
+        .eq('id', userId)
+        .single();
+
+      if (fallbackError || !fallbackUser) {
+        const msg = userError?.message || fallbackError?.message || '';
+        const statusCode = (userError && userError.message?.toLowerCase().includes('not found')) || fallbackError?.code === 'PGRST116'
+          ? 404
+          : 500;
+        return NextResponse.json(
+          { error: statusCode === 404 ? 'User not found' : `Failed to fetch user: ${msg}` },
+          { status: statusCode }
+        );
+      }
+
+      authUser = {
+        id: fallbackUser.id,
+        email: fallbackUser.email,
+        created_at: fallbackUser.created_at,
+        last_sign_in_at: fallbackUser.updated_at,
+      } as any; // minimal shape needed below
     }
-    if (!userData.user) {
+
+    // At this point authUser is guaranteed
+    if (!authUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
     const user = {
-      id: userData.user.id,
-      email: userData.user.email,
-      created_at: userData.user.created_at,
-      last_sign_in_at: userData.user.last_sign_in_at,
+      id: authUser.id,
+      email: authUser.email,
+      created_at: authUser.created_at,
+      last_sign_in_at: authUser.last_sign_in_at,
       role: profileData?.role || 'user',
       full_name: profileData?.full_name || '',
       company: profileData?.company || '',
@@ -71,12 +101,14 @@ export async function GET(
 // PUT update user
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
   try {
     if (!(await verifyAdminAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id: userId } = await params;
+    // Safely resolve params which can be a Promise in Next 15
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const userId = resolvedParams.id;
     const body = await request.json();
     const { email, full_name, company, phone, role } = body;
 
@@ -103,11 +135,13 @@ export async function PUT(
 // DELETE user
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
   try {
     if (!(await verifyAdminAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const { id: userId } = await params;
+    // Safely resolve params which can be a Promise in Next 15
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const userId = resolvedParams.id;
     const supabase = createAdminSupabase();
     const { error } = await supabase.auth.admin.deleteUser(userId);
     if (error) return NextResponse.json({ error: `Failed to delete user: ${error.message}` }, { status: 500 });

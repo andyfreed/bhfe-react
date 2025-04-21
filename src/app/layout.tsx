@@ -1,3 +1,5 @@
+'use client';
+import '@/lib/silenceAbortErrors';
 import '@/styles/theme.css'
 import './globals.css'
 import { Poppins } from 'next/font/google'

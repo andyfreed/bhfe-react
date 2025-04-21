@@ -61,14 +61,38 @@ export default function AdminUserDetailPage() {
   const [isChangingRole, setIsChangingRole] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Suppress unhandled promise rejections caused by aborted fetches (Next dev overlay noise)
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      const r = event?.reason as any;
+      const isAbort = r?.name === 'AbortError' || r?.message === 'Aborted' || r?.canceled;
+      if (isAbort) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
+
   // Fetch user details and enrollments
   useEffect(() => {
+    const abortController = new AbortController();
+
     async function fetchData() {
       setIsLoading(true);
+      setErrorMessage(null);
       try {
         // Fetch user details from API endpoint instead of direct table query
-        const response = await fetch(`/api/users/${userId}`);
+        const response = await fetch(`/api/users/${userId}`, {
+          signal: abortController.signal,
+        });
         if (!response.ok) {
+          if (response.status === 404) {
+            setErrorMessage('User not found');
+            setIsLoading(false);
+            return;
+          }
           throw new Error(`Failed to fetch user data: ${response.status}`);
         }
         
@@ -89,7 +113,9 @@ export default function AdminUserDetailPage() {
         });
 
         // Fetch user enrollments
-        const enrollmentsResponse = await fetch(`/api/admin/enrollments?userId=${userId}`);
+        const enrollmentsResponse = await fetch(`/api/admin/enrollments?userId=${userId}`, {
+          signal: abortController.signal,
+        });
         if (!enrollmentsResponse.ok) {
           throw new Error(`Error fetching user enrollments: ${enrollmentsResponse.status}`);
         }
@@ -97,7 +123,9 @@ export default function AdminUserDetailPage() {
         setEnrollments(enrollmentData.enrollments || []);
 
         // Fetch all courses
-        const coursesResponse = await fetch(`/api/admin/courses`);
+        const coursesResponse = await fetch(`/api/admin/courses`, {
+          signal: abortController.signal,
+        });
         if (!coursesResponse.ok) {
           throw new Error(`Error fetching courses: ${coursesResponse.status}`);
         }
@@ -108,7 +136,15 @@ export default function AdminUserDetailPage() {
         const availableCourses = courseData.courses?.filter((course: Course) => !enrolledCourseIds.has(course.id)) || [];
         
         setAvailableCourses(availableCourses);
+
+        // If we got this far everything succeeded – clear any previous
+        // error banner that may have been set by earlier attempts.
+        setErrorMessage(null);
       } catch (error) {
+        // Ignore fetches aborted due to rapid unmount / reloads
+        if ((error as any)?.name === 'AbortError') {
+          return;
+        }
         console.error('Error fetching data:', error);
         setErrorMessage('Failed to load user data. Please try again later.');
       } finally {
@@ -119,6 +155,11 @@ export default function AdminUserDetailPage() {
     if (userId) {
       fetchData();
     }
+
+    // Cleanup: abort any in‑flight requests if component unmounts or userId changes
+    return () => {
+      abortController.abort();
+    };
   }, [userId]);
 
   // Function to create a new enrollment
