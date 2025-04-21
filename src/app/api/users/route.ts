@@ -210,4 +210,120 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// POST: Create a new user
+export async function POST(request: NextRequest) {
+  const headersList = headers();
+  
+  try {
+    // Initialize Supabase client
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    
+    // Check if environment variables are set
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase credentials');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Verify admin access
+    const isAdmin = await verifyAuth(supabase).catch(error => {
+      console.error('Auth verification error:', error);
+      return false;
+    });
+    
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    // Parse request body
+    const { email, password, full_name, company, phone, role } = await request.json();
+    
+    // Validate required fields
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+    
+    // Create new user
+    const { data: userData, error: createError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true // Auto-confirm email
+    });
+    
+    if (createError) {
+      return NextResponse.json(
+        { error: `Failed to create user: ${createError.message}` },
+        { status: 500 }
+      );
+    }
+    
+    if (!userData.user) {
+      return NextResponse.json(
+        { error: 'Failed to create user' },
+        { status: 500 }
+      );
+    }
+    
+    // Create profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: userData.user.id, // Use the user ID as profile ID
+        full_name,
+        company,
+        phone,
+        role: role || 'user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    
+    if (profileError) {
+      console.error('Error creating user profile:', profileError);
+      // We've already created the user, so return partial success
+      return NextResponse.json(
+        {
+          user: userData.user,
+          warning: 'User created, but profile data could not be saved'
+        },
+        { status: 201 }
+      );
+    }
+    
+    // Return the new user with profile data
+    return NextResponse.json(
+      {
+        id: userData.user.id,
+        email: userData.user.email,
+        role: role || 'user',
+        full_name,
+        company,
+        phone,
+        created_at: userData.user.created_at
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error('Server error in POST /api/users:', error);
+    return NextResponse.json(
+      { 
+        error: 'Internal server error', 
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      },
+      { status: 500 }
+    );
+  }
 } 

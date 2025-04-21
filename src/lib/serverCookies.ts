@@ -9,9 +9,9 @@ import { cookies } from 'next/headers';
  * Get a cookie value by name (server-side)
  * This must be used within a Server Component or Server Action
  */
-export function getServerCookie(name: string): string | undefined {
+export async function getServerCookie(name: string): Promise<string | undefined> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     return cookieStore.get(name)?.value;
   } catch (error) {
     console.error(`Server: Error getting cookie ${name}:`, error);
@@ -23,7 +23,7 @@ export function getServerCookie(name: string): string | undefined {
  * Set a cookie with the given options (server-side)
  * This must be used within a Server Component or Server Action
  */
-export function setServerCookie(
+export async function setServerCookie(
   name: string, 
   value: string, 
   options: {
@@ -33,7 +33,7 @@ export function setServerCookie(
     maxAge?: number;
     path?: string;
   } = {}
-): void {
+): Promise<void> {
   try {
     // Make sure path is set to root by default
     const finalOptions = {
@@ -41,7 +41,7 @@ export function setServerCookie(
       path: options.path || '/',
     };
     
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set(name, value, finalOptions);
   } catch (error) {
     console.error(`Server: Error setting cookie ${name}:`, error);
@@ -52,9 +52,9 @@ export function setServerCookie(
  * Delete a cookie by name (server-side)
  * This must be used within a Server Component or Server Action
  */
-export function deleteServerCookie(name: string): void {
+export async function deleteServerCookie(name: string): Promise<void> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete(name);
   } catch (error) {
     console.error(`Server: Error deleting cookie ${name}:`, error);
@@ -65,15 +65,39 @@ export function deleteServerCookie(name: string): void {
  * Check if a token is valid for admin access
  */
 export function isValidAdminToken(token?: string): boolean {
-  return token === 'temporary-token' || token === 'allowed';
+  console.log('[isValidAdminToken] Checking token:', token);
+  console.log('[isValidAdminToken] NODE_ENV:', process.env.NODE_ENV);
+  
+  if (!token) {
+    console.log('[isValidAdminToken] No token provided');
+    return false;
+  }
+  
+  // Accept our development token in dev mode
+  const isDevelopmentToken = token === 'super-secure-admin-token-for-development' && 
+                           process.env.NODE_ENV === 'development';
+  
+  console.log('[isValidAdminToken] isDevelopmentToken:', isDevelopmentToken);
+  
+  if (isDevelopmentToken) {
+    console.log('[isValidAdminToken] Using development token');
+    return true;
+  }
+  
+  // Check against our environment variable
+  const validToken = process.env.ADMIN_TOKEN;
+  console.log('[isValidAdminToken] ENV token:', validToken);
+  console.log('[isValidAdminToken] Match env token:', token === validToken);
+  
+  return token === validToken;
 }
 
 /**
  * Get the admin token from cookies (server-side)
  * This must be used within a Server Component or Server Action
  */
-export function getServerAdminToken(): string | undefined {
-  return getServerCookie('admin_token');
+export async function getServerAdminToken(): Promise<string | undefined> {
+  return await getServerCookie('admin_token');
 }
 
 /**

@@ -8,6 +8,9 @@ COPY package.json package-lock.json ./
 # Install dependencies
 RUN npm ci
 
+# Copy the configuration files first
+COPY tailwind.config.js postcss.config.js ./
+
 # Copy the rest of the code
 COPY . .
 

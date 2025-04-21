@@ -2,7 +2,6 @@
   "name": "bhfe-react",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "npx next dev",
     "build": "npx next build",

@@ -2,7 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Exam, ExamQuestion, UserExamAttempt, UserExamAnswer } from '@/types/database';
+import { Exam, ExamQuestion } from '@/types/database';
+
+// Updated interface to match current API/database schema
+interface ExamAttempt {
+  id: string;
+  user_id: string;
+  exam_id: string;
+  status: 'in_progress' | 'completed';
+  score: number | null;
+  passed: boolean | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+// Updated interface for exam answers
+interface ExamAnswer {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  selected_options: string[];
+  is_correct: boolean;
+  created_at: string;
+}
 
 interface ExamTakerProps {
   examId: string;
@@ -15,13 +37,13 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
   
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
-  const [attempt, setAttempt] = useState<UserExamAttempt | null>(null);
+  const [attempt, setAttempt] = useState<ExamAttempt | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   
   const [currentPage, setCurrentPage] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [result, setResult] = useState<UserExamAttempt | null>(null);
+  const [result, setResult] = useState<ExamAttempt | null>(null);
   
   const questionsPerPage = 10;
   const totalPages = Math.ceil(questions.length / questionsPerPage);
@@ -41,13 +63,24 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         });
         
         if (!attemptsResponse.ok) {
-          throw new Error('Failed to load attempts');
+          const errorText = await attemptsResponse.text();
+          console.error(`Failed to load attempts: ${attemptsResponse.status} ${errorText}`);
+          
+          // In development mode, provide a more detailed error message
+          if (process.env.NODE_ENV === 'development') {
+            setError(`Failed to load attempts: ${attemptsResponse.status} - ${errorText.substring(0, 100)}... The server may be restarting or experiencing issues.`);
+          } else {
+            setError('Failed to load attempts. Please try again later.');
+          }
+          
+          setLoading(false);
+          return;
         }
         
         const attemptsData = await attemptsResponse.json();
         
-        // Check for incomplete attempts
-        const incompleteAttempt = attemptsData.find((a: UserExamAttempt) => !a.completed);
+        // Find an incomplete attempt based on status
+        const incompleteAttempt = attemptsData.find((a: ExamAttempt) => a.status !== 'completed');
         
         if (incompleteAttempt) {
           // Resume incomplete attempt
@@ -62,17 +95,29 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
           });
           
           if (attemptResponse.ok) {
-            const { attempt, answers: attemptAnswers } = await attemptResponse.json();
+            const attemptData = await attemptResponse.json();
             
-            // Map answers to format used by component
-            const answerMap: Record<string, string> = {};
-            attemptAnswers.forEach((answer: UserExamAnswer) => {
-              if (answer.selected_option) {
-                answerMap[answer.question_id] = answer.selected_option;
+            // Get answers for this attempt
+            const answersResponse = await fetch(`/api/exams/attempts/${incompleteAttempt.id}/answers`, {
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
               }
             });
             
-            setAnswers(answerMap);
+            if (answersResponse.ok) {
+              const answersData = await answersResponse.json();
+              
+              // Map answers to format used by component
+              const answerMap: Record<string, string> = {};
+              answersData.forEach((answer: any) => {
+                if (answer.selected_options && answer.selected_options.length > 0) {
+                  answerMap[answer.question_id] = answer.selected_options[0];
+                }
+              });
+              
+              setAnswers(answerMap);
+            }
           }
         } else {
           // Create a new attempt
@@ -108,8 +153,14 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         setExam(examData);
         setQuestions(questionsData);
       } catch (err) {
-        console.error(err);
-        setError('Error loading exam. Please try again.');
+        console.error('Error loading exam:', err);
+        
+        // In development mode, provide a more detailed error message
+        if (process.env.NODE_ENV === 'development') {
+          setError(`Error loading exam: ${err instanceof Error ? err.message : String(err)}`);
+        } else {
+          setError('Error loading exam. Please try again later.');
+        }
       } finally {
         setLoading(false);
       }
@@ -148,7 +199,7 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         credentials: 'include',
         body: JSON.stringify({
           questionId,
-          selectedOption: answer
+          selectedOptions: [answer]
         })
       });
       
@@ -198,13 +249,16 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         }
       }
       
-      // Submit the exam
+      // Submit the exam - set status to completed
       const response = await fetch(`/api/exams/attempts/${attempt.id}`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+          status: 'completed'
+        })
       });
       
       if (!response.ok) {

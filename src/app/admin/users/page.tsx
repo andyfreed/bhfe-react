@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import CreateUserForm from '@/components/admin/CreateUserForm';
 
 // Define interfaces for data structures
 interface UserProfile {
@@ -21,15 +22,18 @@ function AdminUsersSection({
   users, 
   isLoading,
   hasError,
-  error
+  error,
+  onUserCreated
 }: { 
   users: UserProfile[]; 
   isLoading: boolean;
   hasError: boolean;
   error: string | null;
+  onUserCreated: (newUser: UserProfile) => void;
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>(users);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   // Update filtered users when search term or users change
   useEffect(() => {
@@ -53,7 +57,9 @@ function AdminUsersSection({
   if (isLoading) {
     return (
       <div className="p-4">
-        <h1 className="text-xl font-bold mb-4">Admin Users</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold">Admin Users</h1>
+        </div>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
         </div>
@@ -64,7 +70,9 @@ function AdminUsersSection({
   if (hasError) {
     return (
       <div className="p-4">
-        <h1 className="text-xl font-bold mb-4">Admin Users</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold">Admin Users</h1>
+        </div>
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
           <strong className="font-bold">Error: </strong>
           <span className="block sm:inline">{error}</span>
@@ -82,7 +90,25 @@ function AdminUsersSection({
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Admin Users</h1>
+      {hasError && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-xl font-bold">Admin Users</h1>
+        <button
+          onClick={() => setIsCreatingUser(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded inline-flex items-center"
+        >
+          <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          Create User
+        </button>
+      </div>
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-blue-100 p-4 rounded">
           <h2 className="font-bold">Total Users</h2>
@@ -134,6 +160,9 @@ function AdminUsersSection({
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollments</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -151,11 +180,41 @@ function AdminUsersSection({
                     {user.role}
                   </span>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <Link 
+                    href={`/admin/users/${user.id}`} 
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
+                    Manage
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {isCreatingUser && (
+        <CreateUserForm 
+          onCancel={() => setIsCreatingUser(false)} 
+          onSuccess={(userData: any) => {
+            // Transform the API response to match the UserProfile type
+            const newUser: UserProfile = {
+              id: userData.id,
+              email: userData.email,
+              role: userData.role || 'user',
+              full_name: userData.full_name || '',
+              company: userData.company || '',
+              phone: userData.phone || '',
+              created_at: userData.created_at || new Date().toISOString(),
+              updated_at: userData.updated_at || userData.created_at || new Date().toISOString(),
+              enrollmentCount: 0
+            };
+            onUserCreated(newUser);
+            setIsCreatingUser(false);
+          }} 
+        />
+      )}
     </div>
   );
 }
@@ -219,6 +278,15 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleUserCreated = (newUser: UserProfile) => {
+    // Add the new user to the list
+    setUsers([
+      newUser,
+      ...users
+    ]);
+    setError(null);
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -226,7 +294,9 @@ export default function AdminUsersPage() {
   if (error && error.includes('permission')) {
     return (
       <div className="p-4">
-        <h1 className="text-xl font-bold mb-4">Admin Users</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold">Admin Users</h1>
+        </div>
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
           <strong className="font-bold">Error: </strong>
           <span className="block sm:inline">{error}</span>
@@ -246,12 +316,26 @@ export default function AdminUsersPage() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold">Admin Users</h1>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AdminUsersSection 
       users={users} 
       isLoading={isLoading} 
       hasError={!!error && !error.includes('permission')} 
-      error={error} 
+      error={error}
+      onUserCreated={handleUserCreated}
     />
   );
 } 

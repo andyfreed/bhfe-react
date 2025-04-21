@@ -3,10 +3,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Alert from '@/components/ui/alert';
-import AlertDescription from '@/components/ui/alert-description';
-import Button from '@/components/ui/button';
-import Input from '@/components/ui/input';
+import { Alert } from '@/components/ui/alert';
+import { AlertDescription } from '@/components/ui/alert-description';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { login } from '@/lib/authService';
 
@@ -105,6 +105,7 @@ export default function LoginPage() {
           onSubmit={handleLogin} 
           className="mt-8 space-y-6"
           autoComplete="on"
+          suppressHydrationWarning
         >
           <div className="space-y-4">
             <div>
@@ -121,6 +122,7 @@ export default function LoginPage() {
                 className="mt-1"
                 placeholder="name@example.com"
                 disabled={isLoading}
+                suppressHydrationWarning
               />
             </div>
             <div>
@@ -136,6 +138,7 @@ export default function LoginPage() {
                 className="mt-1"
                 placeholder="••••••••"
                 disabled={isLoading}
+                suppressHydrationWarning
               />
             </div>
           </div>
@@ -149,6 +152,7 @@ export default function LoginPage() {
                 autoComplete="off"
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 disabled={isLoading}
+                suppressHydrationWarning
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                 Remember me

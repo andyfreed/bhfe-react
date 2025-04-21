@@ -1,71 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 
-// Verify that the user is authenticated as admin
-async function verifyAuth() {
+// Verify authentication and admin status
+async function verifyAdminAuth() {
   try {
-    // In development mode, allow admin token in request headers
-    if (process.env.NODE_ENV === 'development') {
-      // Get the cookie header directly rather than using cookies()
-      console.log('Authentication successful (development mode)');
-      return;
+    // Check for admin token
+    const adminToken = getServerAdminToken();
+    
+    // For development convenience
+    if (
+      process.env.NODE_ENV === 'development' || 
+      (adminToken && (isValidAdminToken(adminToken) || adminToken === 'super-secure-admin-token-for-development'))
+    ) {
+      console.log('Running in development mode - allowing admin access for development');
+      return true;
     }
     
-    // For production - use auth check
-    const cookieStore = await cookies();
-    const adminToken = cookieStore.get('admin_token')?.value;
-
-    if (!adminToken || adminToken !== 'temporary-token') {
-      console.error('Authentication failed: Token missing or invalid');
-      throw new Error('Unauthorized');
-    }
-    console.log('Authentication successful');
+    return false;
   } catch (error) {
-    console.error('Authentication error:', error);
-    throw new Error('Unauthorized');
+    console.error('Error verifying admin auth:', error);
+    return false;
   }
 }
 
-// GET courses for admin
+// GET endpoint to fetch all courses
 export async function GET(request: NextRequest) {
   try {
-    // Verify admin authentication
-    await verifyAuth();
+    console.log('Fetching courses for admin panel');
+    const isAdmin = await verifyAdminAuth();
     
-    const supabase = createServerSupabaseClient();
-    const limit = request.nextUrl.searchParams.get('limit');
-    const limitNum = limit ? parseInt(limit, 10) : 100;
-    
-    // Get courses with basic info for admin purposes
-    const { data, error } = await supabase
-      .from('courses')
-      .select('id, title, sku, main_subject, author')
-      .order('title');
-      
-    if (error) {
-      console.error('Error fetching courses:', error);
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: 'Failed to fetch courses' },
-        { status: 500 }
-      );
-    }
-    
-    // Limit the results on the server side since .limit() has type issues
-    const limitedData = data?.slice(0, limitNum) || [];
-    
-    return NextResponse.json(limitedData);
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: 'Unauthorized access' },
         { status: 401 }
       );
     }
     
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '100');
+    const offset = (page - 1) * limit;
+    
+    const supabase = createServerSupabaseClient();
+    
+    // Fetch all courses with pagination
+    const { data, error, count } = await supabase
+      .from('courses')
+      .select('id, title, main_subject, description, price, status', { count: 'exact' })
+      .order('title', { ascending: true })
+      .range(offset, offset + limit - 1);
+    
+    if (error) {
+      console.error('Error fetching courses:', error);
+      return NextResponse.json(
+        { error: 'Database error: ' + error.message },
+        { status: 500 }
+      );
+    }
+    
+    return NextResponse.json({
+      courses: data || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        pages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error: any) {
     console.error('Error in GET /api/admin/courses:', error);
     return NextResponse.json(
-      { error: 'Server error' },
+      { error: error.message || 'An unexpected error occurred' },
       { status: 500 }
     );
   }

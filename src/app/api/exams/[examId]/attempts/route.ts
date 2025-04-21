@@ -1,179 +1,110 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkAdminAccess, safeResponse } from '@/lib/adminAuth';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClientWithCookies } from '@/lib/supabaseServer';
+
+// Fixed development user ID for bypassing auth in development mode
+const DEV_USER_ID = '9e5d47c8-e363-4444-a55e-97f1f0420633';
 
 /**
  * GET /api/exams/[examId]/attempts
- * Get all attempts for the exam by the current user
+ * Get all attempts for a specific exam
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { examId: string } }
 ) {
-  const examId = params.examId;
-  
-  if (!examId) {
-    return NextResponse.json({ error: 'Exam ID is required' }, { status: 400 });
-  }
-
   try {
-    // Check for admin access first
-    const adminUserId = await checkAdminAccess();
+    // Get the exam ID from params
+    const { examId } = params;
     
-    if (adminUserId) {
-      console.log('Admin access verified - returning mock attempts');
-      // Return an empty array of attempts for admin
-      return NextResponse.json([]);
-    }
-    
-    // For regular users, fetch real attempts from the database
     // Create Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = createServerSupabaseClientWithCookies();
     
-    // Get user from auth
-    const { data: { session } } = await supabase.auth.getSession();
+    // Use development user ID in development mode
+    let userId: string | null = process.env.NODE_ENV === 'development' ? DEV_USER_ID : null;
     
-    if (!session?.user?.id) {
-      console.log('No valid session found - unauthorized');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-    console.log('User ID:', userId);
-    
-    // Get attempts for this user and exam
-    const response = await supabase
-      .from('user_exam_attempts')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('exam_id', examId)
-      .order('created_at', { ascending: false });
+    // If not using dev ID, get user from auth
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id || null;
       
-    const { data: attempts, error } = safeResponse<any[]>(response);
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+    
+    console.log(`Getting attempts for exam ${examId} as user ${userId}`);
+    
+    // Get all attempts for this exam for this user
+    const { data, error } = await supabase
+      .from('exam_attempts')
+      .select('*')
+      .eq('exam_id', examId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
     
     if (error) {
       console.error('Error fetching attempts:', error);
       return NextResponse.json({ error: 'Failed to fetch attempts' }, { status: 500 });
     }
     
-    return NextResponse.json(attempts || []);
+    return NextResponse.json(data || []);
   } catch (error) {
-    console.error('Error in GET attempts:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error in GET /api/exams/[examId]/attempts:', error);
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 }
 
 /**
  * POST /api/exams/[examId]/attempts
- * Create a new attempt for the exam by the current user
+ * Create a new attempt for a specific exam
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: { examId: string } }
 ) {
-  const examId = params.examId;
-  
-  if (!examId) {
-    return NextResponse.json({ error: 'Exam ID is required' }, { status: 400 });
-  }
-
   try {
-    // Check for admin access first
-    const adminUserId = await checkAdminAccess();
+    // Get the exam ID from params
+    const { examId } = params;
     
-    if (adminUserId) {
-      console.log('Admin access verified - creating mock attempt');
-      
-      // Return a mock attempt for admin
-      return NextResponse.json({
-        id: 'mock-attempt-id',
-        user_id: adminUserId,
-        exam_id: examId,
-        score: null,
-        completed: false,
-        started_at: new Date().toISOString(),
-        completed_at: null,
-        passed: null,
-        created_at: new Date().toISOString()
-      });
-    }
-    
-    // For regular users, create a real attempt in the database
     // Create Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = createServerSupabaseClientWithCookies();
     
-    // Get user from auth
-    const { data: { session } } = await supabase.auth.getSession();
+    // Use development user ID in development mode
+    let userId: string | null = process.env.NODE_ENV === 'development' ? DEV_USER_ID : null;
     
-    if (!session?.user?.id) {
-      console.log('No valid session found - unauthorized');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-    console.log('Creating attempt for user ID:', userId);
-    
-    // First, get the exam to check if there's an attempt limit
-    const examResponse = await supabase
-      .from('exams')
-      .select('attempt_limit')
-      .eq('id', examId)
-      .single();
+    // If not using dev ID, get user from auth
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id || null;
       
-    const { data: examData, error: examError } = safeResponse<any>(examResponse);
-    
-    if (examError) {
-      console.error('Error fetching exam:', examError);
-      return NextResponse.json({ error: 'Failed to fetch exam' }, { status: 500 });
-    }
-    
-    // If there's an attempt limit, check if the user has reached it
-    if (examData && examData.attempt_limit !== null) {
-      // Count existing attempts
-      const attemptResponse = await supabase
-        .from('user_exam_attempts')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .eq('exam_id', examId);
-        
-      const { data: attemptData, error: countError, count } = safeResponse<any>(attemptResponse);
-      
-      if (countError) {
-        console.error('Error counting attempts:', countError);
-        return NextResponse.json({ error: 'Failed to check attempt count' }, { status: 500 });
-      }
-      
-      // If user has reached the limit, return an error
-      if (count && count >= examData.attempt_limit) {
-        return NextResponse.json({ 
-          error: 'Attempt limit reached', 
-          message: `You have reached the maximum number of attempts (${examData.attempt_limit}) for this exam.`
-        }, { status: 403 });
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     }
     
-    // Create new attempt
-    const insertResponse = await supabase
-      .from('user_exam_attempts')
-      .insert({
-        user_id: userId,
+    console.log(`Creating attempt for exam ${examId} as user ${userId}`);
+    
+    // Create new attempt record
+    const { data, error } = await supabase
+      .from('exam_attempts')
+      .insert([{ 
         exam_id: examId,
-        started_at: new Date().toISOString(),
-        completed: false
-      })
+        user_id: userId,
+        status: 'in_progress',
+        score: null,
+        completed_at: null
+      }])
       .select()
       .single();
-      
-    const { data, error } = safeResponse<any>(insertResponse);
     
     if (error) {
       console.error('Error creating attempt:', error);
       return NextResponse.json({ error: 'Failed to create attempt' }, { status: 500 });
     }
     
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: 201 });
   } catch (error) {
-    console.error('Error in POST attempts:', error);
-    return NextResponse.json({ error: 'Failed to create exam attempt' }, { status: 500 });
+    console.error('Error in POST /api/exams/[examId]/attempts:', error);
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 } 

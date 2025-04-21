@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkAdminAccess } from '@/lib/adminAuth';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClientWithCookies } from '@/lib/supabaseServer';
+
+// Fixed development user ID for bypassing auth in development mode
+const DEV_USER_ID = '9e5d47c8-e363-4444-a55e-97f1f0420633';
+const IS_DEV = process.env.NODE_ENV === 'development';
 
 /**
  * GET /api/exams/attempts/[attemptId]
@@ -11,85 +14,46 @@ export async function GET(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    const attemptId = params.attemptId;
-    if (!attemptId) {
-      return NextResponse.json(
-        { error: 'Missing attemptId parameter' },
-        { status: 400 }
-      );
-    }
-
-    // Check for admin access first
-    const adminUserId = await checkAdminAccess();
+    // Get the attempt ID from params
+    const { attemptId } = params;
     
-    if (adminUserId && attemptId === 'mock-attempt-id') {
-      console.log('Admin access verified - returning mock attempt data');
-      
-      // Return mock attempt data
-      return NextResponse.json({
-        attempt: {
-          id: 'mock-attempt-id',
-          user_id: adminUserId,
-          exam_id: 'mock-exam-id',
-          score: null,
-          completed: false,
-          started_at: new Date().toISOString(),
-          completed_at: null,
-          passed: null,
-          created_at: new Date().toISOString()
-        },
-        answers: []  // No answers yet for the mock attempt
-      });
-    }
-    
-    // For regular users, fetch real attempt data
-    const supabase = createServerSupabaseClient();
-    
-    // Get user from auth
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user?.id) {
-      console.log('No valid session found - unauthorized');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+    // Create Supabase client
+    const supabase = createServerSupabaseClientWithCookies();
     
     // Get the attempt
     const { data: attempt, error: attemptError } = await supabase
-      .from('user_exam_attempts')
+      .from('exam_attempts')
       .select('*')
       .eq('id', attemptId)
       .single();
     
-    if (attemptError) {
-      console.error('Error fetching attempt:', attemptError);
-      return NextResponse.json({ error: 'Failed to fetch exam attempt' }, { status: 500 });
+    if (attemptError || !attempt) {
+      return NextResponse.json(
+        { error: 'Attempt not found' },
+        { status: 404 }
+      );
     }
     
-    // Verify the attempt belongs to the user
-    if (attempt.user_id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Skip auth check in development mode
+    if (!IS_DEV) {
+      // Get user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user || user.id !== attempt.user_id) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
     }
     
-    // Get answers for this attempt
-    const { data: answers, error: answersError } = await supabase
-      .from('user_exam_answers')
-      .select('*')
-      .eq('attempt_id', attemptId);
-    
-    if (answersError) {
-      console.error('Error fetching answers:', answersError);
-      return NextResponse.json({ error: 'Failed to fetch answers' }, { status: 500 });
-    }
-    
-    return NextResponse.json({
-      attempt,
-      answers: answers || []
-    });
+    return NextResponse.json(attempt);
   } catch (error) {
-    console.error('Error in GET attempt:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error in GET /api/exams/attempts/[attemptId]:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred' },
+      { status: 500 }
+    );
   }
 }
 
@@ -102,107 +66,148 @@ export async function POST(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    const attemptId = params.attemptId;
-    if (!attemptId) {
-      return NextResponse.json(
-        { error: 'Missing attemptId parameter' },
-        { status: 400 }
-      );
-    }
-
-    // Check for admin access first
-    const adminUserId = await checkAdminAccess();
+    // Get the attempt ID from params
+    const { attemptId } = params;
     
-    if (adminUserId && attemptId === 'mock-attempt-id') {
-      console.log('Admin access verified - returning completed mock attempt');
-      
-      // Return mock completed attempt
-      return NextResponse.json({
-        id: 'mock-attempt-id',
-        user_id: adminUserId,
-        exam_id: 'mock-exam-id',
-        score: 80, // Mock score
-        completed: true,
-        started_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 min ago
-        completed_at: new Date().toISOString(),
-        passed: true,
-        created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString()
-      });
-    }
+    // Parse the request body
+    const body = await request.json();
+    const { status, score, passed } = body;
     
-    // For regular users, process the real attempt
-    const supabase = createServerSupabaseClient();
+    // Create Supabase client
+    const supabase = createServerSupabaseClientWithCookies();
     
-    // Get user from auth
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user?.id) {
-      console.log('No valid session found - unauthorized');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-    
-    // Get the attempt
-    const { data: attempt, error: attemptError } = await supabase
-      .from('user_exam_attempts')
-      .select('*, exam:exams(*)')
+    // First, get the attempt to verify ownership
+    const { data: attemptData, error: attemptError } = await supabase
+      .from('exam_attempts')
+      .select('*')
       .eq('id', attemptId)
       .single();
     
-    if (attemptError) {
-      console.error('Error fetching attempt:', attemptError);
-      return NextResponse.json({ error: 'Failed to fetch exam attempt' }, { status: 500 });
+    if (attemptError || !attemptData) {
+      return NextResponse.json(
+        { error: 'Attempt not found' },
+        { status: 404 }
+      );
     }
     
-    // Verify the attempt belongs to the user
-    if (attempt.user_id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Skip auth check in development mode
+    if (!IS_DEV) {
+      // Get user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+      
+      // Verify user owns this attempt
+      if (attemptData.user_id !== user.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized - you do not own this attempt' },
+          { status: 403 }
+        );
+      }
     }
-    
-    // Get answers and questions for this attempt
-    const { data: answers, error: answersError } = await supabase
-      .from('user_exam_answers')
-      .select('*, question:exam_questions(*)')
-      .eq('attempt_id', attemptId);
-    
-    if (answersError) {
-      console.error('Error fetching answers:', answersError);
-      return NextResponse.json({ error: 'Failed to fetch answers' }, { status: 500 });
-    }
-    
-    // Calculate score
-    const totalQuestions = attempt.exam.num_questions;
-    const answeredQuestions = answers ? answers.length : 0;
-    const correctAnswers = answers ? answers.filter(a => a.is_correct).length : 0;
-    
-    const score = totalQuestions > 0 
-      ? Math.round((correctAnswers / totalQuestions) * 100) 
-      : 0;
-    
-    const passed = score >= attempt.exam.passing_score;
     
     // Update the attempt
-    const { data: updatedAttempt, error: updateError } = await supabase
-      .from('user_exam_attempts')
-      .update({
-        completed: true,
-        completed_at: new Date().toISOString(),
-        score,
-        passed
-      })
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (score !== undefined) updateData.score = score;
+    if (passed !== undefined) updateData.passed = passed;
+    
+    // If setting status to complete, add completed_at
+    if (status === 'completed') {
+      updateData.completed_at = new Date().toISOString();
+    }
+    
+    const { data, error } = await supabase
+      .from('exam_attempts')
+      .update(updateData)
       .eq('id', attemptId)
       .select()
       .single();
     
-    if (updateError) {
-      console.error('Error updating attempt:', updateError);
-      return NextResponse.json({ error: 'Failed to update exam attempt' }, { status: 500 });
+    if (error) {
+      return NextResponse.json(
+        { error: 'Failed to update attempt' },
+        { status: 500 }
+      );
     }
     
-    return NextResponse.json(updatedAttempt);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error in POST attempt:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error in POST /api/exams/attempts/[attemptId]:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { attemptId: string } }
+) {
+  try {
+    // Get the attempt ID from params
+    const { attemptId } = params;
+    
+    // Create Supabase client
+    const supabase = createServerSupabaseClientWithCookies();
+    
+    // Get the attempt
+    const { data: attempt, error: attemptError } = await supabase
+      .from('exam_attempts')
+      .select('*')
+      .eq('id', attemptId)
+      .single();
+    
+    if (attemptError || !attempt) {
+      return NextResponse.json(
+        { error: 'Attempt not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Skip auth check in development mode
+    if (!IS_DEV) {
+      // Get user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user || user.id !== attempt.user_id) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+    }
+    
+    // Get the update data from the request
+    const updateData = await request.json();
+    
+    // Update the attempt
+    const { data, error } = await supabase
+      .from('exam_attempts')
+      .update(updateData)
+      .eq('id', attemptId)
+      .select()
+      .single();
+    
+    if (error) {
+      return NextResponse.json(
+        { error: 'Failed to update attempt' },
+        { status: 500 }
+      );
+    }
+    
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error in PATCH /api/exams/attempts/[attemptId]:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred' },
+      { status: 500 }
+    );
   }
 } 

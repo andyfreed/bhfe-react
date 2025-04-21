@@ -1,6 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkAdminAccess } from '@/lib/adminAuth';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClientWithCookies } from '@/lib/supabaseServer';
+
+// Fixed development user ID for bypassing auth in development mode
+const DEV_USER_ID = '9e5d47c8-e363-4444-a55e-97f1f0420633';
+const IS_DEV = process.env.NODE_ENV === 'development';
+
+/**
+ * GET /api/exams/attempts/[attemptId]/answers
+ * Get all answers for a specific exam attempt
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { attemptId: string } }
+) {
+  try {
+    // Get the attempt ID from params
+    const { attemptId } = params;
+    
+    // Create Supabase client
+    const supabase = createServerSupabaseClientWithCookies();
+    
+    // First, get the attempt to verify it exists and check ownership
+    const { data: attemptData, error: attemptError } = await supabase
+      .from('exam_attempts')
+      .select('*')
+      .eq('id', attemptId)
+      .single();
+    
+    if (attemptError || !attemptData) {
+      return NextResponse.json(
+        { error: 'Attempt not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Skip auth check in development mode
+    if (!IS_DEV) {
+      // Get user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+      
+      // Verify user owns this attempt
+      if (attemptData.user_id !== user.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized - you do not own this attempt' },
+          { status: 403 }
+        );
+      }
+    }
+    
+    // Get all answers for this attempt
+    const { data, error } = await supabase
+      .from('exam_answers')
+      .select('*')
+      .eq('attempt_id', attemptId);
+    
+    if (error) {
+      return NextResponse.json(
+        { error: 'Failed to fetch answers' },
+        { status: 500 }
+      );
+    }
+    
+    return NextResponse.json(data || []);
+  } catch (error) {
+    console.error('Error in GET /api/exams/attempts/[attemptId]/answers:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred' },
+      { status: 500 }
+    );
+  }
+}
 
 /**
  * POST /api/exams/attempts/[attemptId]/answers
@@ -11,73 +87,59 @@ export async function POST(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    const attemptId = params.attemptId;
-    if (!attemptId) {
-      return NextResponse.json(
-        { error: 'Missing attemptId parameter' },
-        { status: 400 }
-      );
-    }
-
-    // Get request body
+    // Get the attempt ID from params
+    const { attemptId } = params;
+    
+    // Parse the request body
     const body = await request.json();
-    const { questionId, selectedOption } = body;
-
-    if (!questionId || !selectedOption) {
+    const { questionId, selectedOptions } = body;
+    
+    if (!questionId || !selectedOptions) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
-
-    // Check for admin access first
-    const adminUserId = await checkAdminAccess();
     
-    if (adminUserId && attemptId === 'mock-attempt-id') {
-      console.log('Admin access verified - saving mock answer');
-      
-      // Return a mock answer
-      return NextResponse.json({
-        id: 'mock-answer-id',
-        attempt_id: attemptId,
-        question_id: questionId,
-        selected_option: selectedOption,
-        is_correct: true,
-        created_at: new Date().toISOString()
-      });
-    }
-    
-    // For regular users, save the real answer
-    const supabase = createServerSupabaseClient();
-    
-    // Get user from auth
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user?.id) {
-      console.log('No valid session found - unauthorized');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+    // Create Supabase client
+    const supabase = createServerSupabaseClientWithCookies();
     
     // First, get the attempt to verify ownership
     const { data: attemptData, error: attemptError } = await supabase
-      .from('user_exam_attempts')
+      .from('exam_attempts')
       .select('*')
       .eq('id', attemptId)
       .single();
     
     if (attemptError || !attemptData) {
-      console.error('Error fetching attempt:', attemptError);
-      return NextResponse.json({ error: 'Failed to verify attempt' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Attempt not found' },
+        { status: 404 }
+      );
     }
     
-    // Verify the attempt belongs to the user
-    if (attemptData.user_id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Skip auth check in development mode
+    if (!IS_DEV) {
+      // Get user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+      
+      // Verify user owns this attempt
+      if (attemptData.user_id !== user.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized - you do not own this attempt' },
+          { status: 403 }
+        );
+      }
     }
     
-    // Get question data to determine if answer is correct
+    // Get the question to check if the answer is correct
     const { data: questionData, error: questionError } = await supabase
       .from('exam_questions')
       .select('*')
@@ -85,37 +147,67 @@ export async function POST(
       .single();
     
     if (questionError || !questionData) {
-      console.error('Error fetching question:', questionError);
-      return NextResponse.json({ error: 'Failed to verify question' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Question not found' },
+        { status: 404 }
+      );
     }
     
-    // Check if selected option is correct
-    const isCorrect = selectedOption === questionData.correct_option;
+    // Check if the selected options match the correct answer
+    // This is a simple example - in a real app, you'd have more complex logic
+    const correctAnswer = questionData.correct_answer;
+    const isCorrect = JSON.stringify(selectedOptions.sort()) === JSON.stringify(correctAnswer.sort());
     
-    // Upsert the answer (update if exists, insert if not)
+    // Save the answer
     const { data, error } = await supabase
-      .from('user_exam_answers')
-      .upsert({
-        attempt_id: attemptId,
-        question_id: questionId,
-        selected_option: selectedOption,
-        is_correct: isCorrect
-      }, {
-        onConflict: 'attempt_id,question_id'
-      })
+      .from('exam_answers')
+      .insert([
+        {
+          attempt_id: attemptId,
+          question_id: questionId,
+          selected_options: selectedOptions,
+          is_correct: isCorrect
+        }
+      ])
       .select()
       .single();
     
     if (error) {
-      console.error('Error saving answer:', error);
-      return NextResponse.json({ error: 'Failed to save answer' }, { status: 500 });
+      // Check if it's a duplicate answer
+      if (error.code === '23505') { // PostgreSQL unique violation code
+        // Update the existing answer
+        const { data: updatedData, error: updateError } = await supabase
+          .from('exam_answers')
+          .update({
+            selected_options: selectedOptions,
+            is_correct: isCorrect
+          })
+          .eq('attempt_id', attemptId)
+          .eq('question_id', questionId)
+          .select()
+          .single();
+        
+        if (updateError) {
+          return NextResponse.json(
+            { error: 'Failed to update answer' },
+            { status: 500 }
+          );
+        }
+        
+        return NextResponse.json(updatedData);
+      }
+      
+      return NextResponse.json(
+        { error: 'Failed to save answer' },
+        { status: 500 }
+      );
     }
     
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error in POST answer:', error);
+    console.error('Error in POST /api/exams/attempts/[attemptId]/answers:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }
