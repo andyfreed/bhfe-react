@@ -1,11 +1,18 @@
-'use client';
 import '@/lib/silenceAbortErrors';
 import '@/styles/theme.css'
 import './globals.css'
 import { Poppins } from 'next/font/google'
-import { Metadata } from 'next'
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { metadata } from './metadata';
+
+// Add error tracking for unhandled promise rejections
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('UNHANDLED PROMISE REJECTION:', event.reason);
+    console.error('Stack:', event.reason?.stack);
+  });
+}
 
 const poppins = Poppins({ 
   subsets: ['latin'],
@@ -13,10 +20,7 @@ const poppins = Poppins({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: 'BH Financial Education',
-  description: 'Professional education courses for financial professionals',
-}
+export { metadata };
 
 export default function RootLayout({
   children,

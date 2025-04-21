@@ -148,7 +148,11 @@ export default function AdminUserDetailPage() {
         console.error('Error fetching data:', error);
         setErrorMessage('Failed to load user data. Please try again later.');
       } finally {
-        setIsLoading(false);
+        // Set a slight delay before removing the loading state
+        // to prevent flashing the "user not found" message
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 500);
       }
     }
 
@@ -387,6 +391,8 @@ export default function AdminUserDetailPage() {
 
   // Function to handle profile update success
   const handleProfileUpdateSuccess = (updatedData: any) => {
+    console.log('Profile updated successfully:', updatedData);
+    
     // Update user state with new data
     setUser(prevUser => {
       if (!prevUser) return null;
@@ -403,29 +409,96 @@ export default function AdminUserDetailPage() {
       };
     });
     
+    // No page reload - just update UI
     setIsEditing(false);
     setSuccessMessage('User profile updated successfully!');
+    
+    // Schedule a delayed refetch instead of a full page reload
+    setTimeout(() => {
+      const abortController = new AbortController();
+      fetch(`/api/users/${userId}`, {
+        signal: abortController.signal,
+      })
+      .then(response => {
+        if (response.ok) return response.json();
+        throw new Error('Failed to refresh user data');
+      })
+      .then(userData => {
+        console.log('Refreshed user data:', userData);
+        setUser({
+          id: userData.id,
+          email: userData.email,
+          created_at: userData.created_at,
+          last_sign_in_at: userData.last_sign_in_at,
+          role: userData.role || 'user',
+          profile: {
+            full_name: userData.full_name || '',
+            company: userData.company || '',
+            phone: userData.phone || ''
+          }
+        });
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error('Error refreshing user data:', err);
+        }
+      });
+      
+      return () => abortController.abort();
+    }, 1000);
   };
 
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">User Details</h1>
+          <Link
+            href="/admin/users"
+            className="text-indigo-600 hover:text-indigo-800 flex items-center"
+          >
+            &larr; Back to Users
+          </Link>
+        </div>
+        
         <div className="flex items-center justify-center h-64">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-2"></div>
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+            <p className="text-gray-600">Loading user data...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!user) {
+  if (!isLoading && !user) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-          User not found.
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">User Details</h1>
+          <Link
+            href="/admin/users"
+            className="text-indigo-600 hover:text-indigo-800 flex items-center"
+          >
+            &larr; Back to Users
+          </Link>
         </div>
-        <Link href="/admin/users" className="text-indigo-600 hover:text-indigo-800">
-          &larr; Back to Users
-        </Link>
+        
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+          <p className="font-bold">User not found or may have been deleted.</p>
+          <p className="mt-2">The user with ID {userId} does not exist in the database.</p>
+          <div className="mt-4">
+            <Link
+              href="/admin/users"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded inline-flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+              </svg>
+              Refresh Users List
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -454,249 +527,251 @@ export default function AdminUserDetailPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* User profile information */}
-        <div className="lg:col-span-1">
-          {isEditing ? (
-            <UserProfileForm
-              userId={userId}
-              initialData={{
-                email: user.email,
-                full_name: user.profile?.full_name,
-                company: user.profile?.company,
-                phone: user.profile?.phone,
-                role: user.role
-              }}
-              onSuccess={handleProfileUpdateSuccess}
-              onCancel={() => setIsEditing(false)}
-            />
-          ) : (
-            <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
-              <div className="p-6 border-b flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold mb-1">{user.email}</h2>
-                  <p className="text-gray-500 text-sm">User ID: {user.id}</p>
-                </div>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                >
-                  Edit Profile
-                </button>
-              </div>
-              <div className="p-6">
-                <h3 className="text-lg font-medium mb-4">Account Information</h3>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Full Name</p>
-                    <p className="font-medium">{user.profile?.full_name || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Email Address</p>
-                    <p className="font-medium">{user.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Role</p>
-                    <p className="font-medium capitalize">{user.role || 'User'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Company</p>
-                    <p className="font-medium">{user.profile?.company || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Phone</p>
-                    <p className="font-medium">{user.profile?.phone || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Account Created</p>
-                    <p className="font-medium">{new Date(user.created_at).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Last Sign In</p>
-                    <p className="font-medium">
-                      {user.last_sign_in_at 
-                        ? new Date(user.last_sign_in_at).toLocaleString() 
-                        : 'Never signed in'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="lg:col-span-2">
-          {/* Enroll in Course Form */}
-          <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Enroll User in Course</h2>
-            <form onSubmit={handleCreateEnrollment} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Course
-                </label>
-                <select
-                  value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                >
-                  <option value="">-- Select Course --</option>
-                  {availableCourses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.title}
-                    </option>
-                  ))}
-                </select>
-                {availableCourses.length === 0 && (
-                  <p className="mt-2 text-sm text-gray-500">
-                    This user is already enrolled in all available courses.
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={enrollmentNotes}
-                  onChange={(e) => setEnrollmentNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  rows={2}
-                />
-              </div>
-              <div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || availableCourses.length === 0}
-                  className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                    (isSubmitting || availableCourses.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isSubmitting ? 'Enrolling...' : 'Enroll User'}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* User Enrollments */}
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold">Course Enrollments ({enrollments.length})</h2>
-            </div>
-            {enrollments.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
-                No enrollments found for this user.
-              </div>
+      {user && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* User profile information */}
+          <div className="lg:col-span-1">
+            {isEditing ? (
+              <UserProfileForm
+                userId={userId}
+                initialData={{
+                  email: user.email,
+                  full_name: user.profile?.full_name,
+                  company: user.profile?.company,
+                  phone: user.profile?.phone,
+                  role: user.role
+                }}
+                onSuccess={handleProfileUpdateSuccess}
+                onCancel={() => setIsEditing(false)}
+              />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Course
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Progress
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Enrolled On
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {enrollments.map((enrollment) => (
-                      <tr key={enrollment.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {enrollment.course?.title || 'Unknown Course'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {enrollment.course?.main_subject || 'No category'}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1 max-w-[100px]">
-                            <div
-                              className="bg-indigo-600 h-2.5 rounded-full"
-                              style={{ width: `${enrollment.progress}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-500">{enrollment.progress}%</span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {new Date(enrollment.enrolled_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            enrollment.completed
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {enrollment.completed ? 'Completed' : 'In Progress'}
-                          </span>
-                          {enrollment.completed && enrollment.completed_at && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Completed on {new Date(enrollment.completed_at).toLocaleDateString()}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleDeleteEnrollment(enrollment.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+                <div className="p-6 border-b flex justify-between items-center">
+                  <div>
+                    <h2 className="text-xl font-semibold mb-1">{user.email}</h2>
+                    <p className="text-gray-500 text-sm">User ID: {user.id}</p>
+                  </div>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                  >
+                    Edit Profile
+                  </button>
+                </div>
+                <div className="p-6">
+                  <h3 className="text-lg font-medium mb-4">Account Information</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Full Name</p>
+                      <p className="font-medium">{user.profile?.full_name || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Email Address</p>
+                      <p className="font-medium">{user.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Role</p>
+                      <p className="font-medium capitalize">{user.role || 'User'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Company</p>
+                      <p className="font-medium">{user.profile?.company || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Phone</p>
+                      <p className="font-medium">{user.profile?.phone || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Account Created</p>
+                      <p className="font-medium">{new Date(user.created_at).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Last Sign In</p>
+                      <p className="font-medium">
+                        {user.last_sign_in_at 
+                          ? new Date(user.last_sign_in_at).toLocaleString() 
+                          : 'Never signed in'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Account Actions */}
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold">Account Actions</h2>
+          <div className="lg:col-span-2">
+            {/* Enroll in Course Form */}
+            <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">Enroll User in Course</h2>
+              <form onSubmit={handleCreateEnrollment} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Course
+                  </label>
+                  <select
+                    value={selectedCourse}
+                    onChange={(e) => setSelectedCourse(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                  >
+                    <option value="">-- Select Course --</option>
+                    {availableCourses.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.title}
+                      </option>
+                    ))}
+                  </select>
+                  {availableCourses.length === 0 && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      This user is already enrolled in all available courses.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes (Optional)
+                  </label>
+                  <textarea
+                    value={enrollmentNotes}
+                    onChange={(e) => setEnrollmentNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || availableCourses.length === 0}
+                    className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                      (isSubmitting || availableCourses.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {isSubmitting ? 'Enrolling...' : 'Enroll User'}
+                  </button>
+                </div>
+              </form>
             </div>
-            <div className="p-6 space-y-4">
-              <button
-                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:opacity-50"
-                onClick={handlePasswordReset}
-                disabled={isSendingPasswordReset}
-              >
-                {isSendingPasswordReset ? 'Sending...' : 'Send Password Reset Email'}
-              </button>
-              <button
-                className="w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50"
-                onClick={handleRoleChange}
-                disabled={isChangingRole}
-              >
-                {isChangingRole 
-                  ? 'Updating...' 
-                  : (user?.role === 'admin' ? 'Remove Admin Role' : 'Make Admin')}
-              </button>
-              <button
-                className="w-full py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none disabled:opacity-50"
-                onClick={handleDeleteUser}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete User'}
-              </button>
+
+            {/* User Enrollments */}
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div className="p-6 border-b">
+                <h2 className="text-xl font-semibold">Course Enrollments ({enrollments.length})</h2>
+              </div>
+              {enrollments.length === 0 ? (
+                <div className="p-6 text-center text-gray-500">
+                  No enrollments found for this user.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Course
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Progress
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Enrolled On
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {enrollments.map((enrollment) => (
+                        <tr key={enrollment.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {enrollment.course?.title || 'Unknown Course'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {enrollment.course?.main_subject || 'No category'}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1 max-w-[100px]">
+                              <div
+                                className="bg-indigo-600 h-2.5 rounded-full"
+                                style={{ width: `${enrollment.progress}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-500">{enrollment.progress}%</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {new Date(enrollment.enrolled_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              enrollment.completed
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {enrollment.completed ? 'Completed' : 'In Progress'}
+                            </span>
+                            {enrollment.completed && enrollment.completed_at && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Completed on {new Date(enrollment.completed_at).toLocaleDateString()}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => handleDeleteEnrollment(enrollment.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Account Actions */}
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div className="p-6 border-b">
+                <h2 className="text-xl font-semibold">Account Actions</h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <button
+                  className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:opacity-50"
+                  onClick={handlePasswordReset}
+                  disabled={isSendingPasswordReset}
+                >
+                  {isSendingPasswordReset ? 'Sending...' : 'Send Password Reset Email'}
+                </button>
+                <button
+                  className="w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50"
+                  onClick={handleRoleChange}
+                  disabled={isChangingRole}
+                >
+                  {isChangingRole 
+                    ? 'Updating...' 
+                    : (user.role === 'admin' ? 'Remove Admin Role' : 'Make Admin')}
+                </button>
+                <button
+                  className="w-full py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none disabled:opacity-50"
+                  onClick={handleDeleteUser}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete User'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 } 

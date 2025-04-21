@@ -45,16 +45,26 @@ export default function CreateUserForm({
         body: JSON.stringify(formData),
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create user');
+        // Extract error message from response
+        let errorMessage = 'Failed to create user';
+        if (responseData && typeof responseData === 'object') {
+          errorMessage = responseData.error || responseData.message || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
       
-      const newUser = await response.json();
-      onSuccess(newUser);
+      // Check for warnings in the response
+      if (responseData.warning) {
+        console.warn('Warning from API:', responseData.warning);
+      }
+      
+      onSuccess(responseData);
     } catch (err) {
       console.error('Error creating user:', err);
-      setError((err as Error).message || 'Failed to create user');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
