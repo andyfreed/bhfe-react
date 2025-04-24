@@ -114,7 +114,7 @@ export default function UserProfileForm({
       ...prev,
       licenses: [
         ...prev.licenses,
-        { type: '', number: '', state: '', expiration_date: '' }
+        { type: '', number: '' }
       ]
     }));
   };
@@ -170,15 +170,40 @@ export default function UserProfileForm({
     console.log('Submitting user profile data:', formData);
     
     try {
+      // Transform data to match API expectations
+      const transformed = {
+        email: formData.email,
+        company: formData.company,
+        phone: formData.phone,
+        role: formData.role,
+        billing_address: {
+          street: formData.billing_address.address1,
+          city: formData.billing_address.city,
+          state: formData.billing_address.state,
+          zip: formData.billing_address.zip,
+          country: formData.billing_address.country,
+        },
+        shipping_address: {
+          street: formData.shipping_address.address1,
+          city: formData.shipping_address.city,
+          state: formData.shipping_address.state,
+          zip: formData.shipping_address.zip,
+          country: formData.shipping_address.country,
+        },
+        licenses: formData.licenses.map(l => ({
+          license_type: l.type,
+          license_number: l.number,
+        })),
+      };
+
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // Add cache control headers
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(transformed),
       });
       
       console.log('Response status:', response.status);
@@ -199,7 +224,8 @@ export default function UserProfileForm({
         full_name: formData.full_name,
         company: formData.company, 
         phone: formData.phone,
-        role: formData.role
+        role: formData.role,
+        licenses: formData.licenses
       });
     } catch (err) {
       console.error('Error updating user profile:', err);
@@ -540,11 +566,9 @@ export default function UserProfileForm({
                     Remove
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      License Type
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">License Type</label>
                     <select
                       value={license.type}
                       onChange={(e) => handleLicenseChange(index, 'type', e.target.value)}
@@ -561,35 +585,11 @@ export default function UserProfileForm({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      License Number
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
                     <input
                       type="text"
                       value={license.number}
                       onChange={(e) => handleLicenseChange(index, 'number', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      State / Jurisdiction
-                    </label>
-                    <input
-                      type="text"
-                      value={license.state || ''}
-                      onChange={(e) => handleLicenseChange(index, 'state', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Expiration Date
-                    </label>
-                    <input
-                      type="date"
-                      value={license.expiration_date || ''}
-                      onChange={(e) => handleLicenseChange(index, 'expiration_date', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
