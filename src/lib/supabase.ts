@@ -6,15 +6,12 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
 
-// Determine if we should use mock mode
-// TEMPORARILY FORCING PRODUCTION MODE
+// Determine if we should use mock mode only if explicitly enabled or no valid credentials
 const useMockClient = isDevelopment && (isMockAuthEnabled || !hasValidSupabaseCredentials());
-// const useMockClient = false; // Force production mode
 
 // Log environment status during development
 if (isDevelopment) {
   logDevEnvironmentStatus();
-  // console.log('🔧 FORCED PRODUCTION MODE: Mock client disabled');
 }
 
 // Create a mock client for development mode
