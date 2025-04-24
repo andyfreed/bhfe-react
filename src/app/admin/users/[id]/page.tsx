@@ -119,6 +119,7 @@ export default function AdminUserDetailPage() {
           if (response.status === 404) {
             setErrorMessage('User not found');
             setIsLoading(false);
+            setIsLoadingEnrollments(false);
             return;
           }
           throw new Error(`Failed to fetch user data: ${response.status}`);
@@ -149,6 +150,7 @@ export default function AdminUserDetailPage() {
         }
         const enrollmentData = await enrollmentsResponse.json();
         setEnrollments(enrollmentData.enrollments || []);
+        setIsLoadingEnrollments(false);
 
         // Fetch all courses
         const coursesResponse = await fetch(`/api/admin/courses`, {
@@ -164,6 +166,7 @@ export default function AdminUserDetailPage() {
         const availableCourses = courseData.courses?.filter((course: Course) => !enrolledCourseIds.has(course.id)) || [];
         
         setAvailableCourses(availableCourses);
+        setIsLoadingEnrollments(false);
 
         // If we got this far everything succeeded – clear any previous
         // error banner that may have been set by earlier attempts.
@@ -176,6 +179,7 @@ export default function AdminUserDetailPage() {
         console.error('Error fetching data:', error);
         
         // If this is a critical error that prevents rendering the page, set it as an unhandled error
+        setIsLoadingEnrollments(false);
         if (isLoading && !user) {
           setUnhandledError(error as Error);
         } else {
