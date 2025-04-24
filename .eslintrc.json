@@ -1,13 +1,14 @@
 {
   "extends": "next/core-web-vitals",
   "rules": {
-    "@typescript-eslint/no-unused-vars": "off",
-    "@typescript-eslint/no-explicit-any": "off",
-    "react/no-unescaped-entities": "off",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "react/no-unescaped-entities": "warn",
     "react-hooks/exhaustive-deps": "warn",
-    "@typescript-eslint/no-empty-object-type": "off",
-    "@typescript-eslint/no-require-imports": "off",
-    "@next/next/no-html-link-for-pages": "off",
-    "prefer-const": "warn"
+    "@typescript-eslint/no-empty-object-type": "warn",
+    "@typescript-eslint/no-require-imports": "warn",
+    "@next/next/no-html-link-for-pages": "warn",
+    "prefer-const": "warn",
+    "@typescript-eslint/ban-ts-comment": "warn"
   }
 } 

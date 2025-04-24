@@ -24,6 +24,7 @@ function createMockClient() {
       signUp: () => Promise.resolve({ data: null, error: null }),
       signOut: () => Promise.resolve({ error: null }),
       resetPasswordForEmail: () => Promise.resolve({ data: null, error: null }),
+      updateUser: () => Promise.resolve({ data: { user: null }, error: null }),
     },
     from: () => ({
       select: () => ({

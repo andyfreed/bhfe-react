@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
           console.log(`Row ${rowIndex + 1} raw data:`, JSON.stringify(row).substring(0, 200) + '...');
           
           // Extract title - try common header names
-          let title = row.Title || row.title || row['Course Title'] || '';
+          const title = row.Title || row.title || row['Course Title'] || '';
           
           // Skip if no usable title found
           if (!title || title.length > 255) {

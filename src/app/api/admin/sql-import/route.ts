@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
       insertedCourse = courseResult.rows[0];
       
       // Insert formats if provided
-      let formats_results = [];
+      const formats_results = [];
       if (formats && formats.length > 0) {
         for (const format of formats) {
           const formatId = uuidv4();
@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
       }
       
       // Insert credits if provided
-      let credits_results = [];
+      const credits_results = [];
       if (credits && credits.length > 0) {
         for (const credit of credits) {
           const creditId = uuidv4();
@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
       }
       
       // Insert states if provided
-      let states_results = [];
+      const states_results = [];
       if (states && states.length > 0) {
         for (const stateObj of states) {
           const stateId = uuidv4();

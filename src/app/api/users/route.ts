@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
     
     // Format user data
     console.log('Formatting user data...');
-    let formattedUsers: FormattedUser[] = [];
+    const formattedUsers: FormattedUser[] = [];
     
     users.forEach(user => {
       const profile = profiles[user.id] || {};
