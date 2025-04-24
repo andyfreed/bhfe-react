@@ -1,0 +1,25 @@
+name: bhfe-education
+region: nyc
+services:
+  - name: web
+    github:
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xs
+    routes:
+      - path: /
+    envs:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${supabase_url}
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: ${supabase_anon_key}
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+    build_command: npm run build
+    run_command: npm start 

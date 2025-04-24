@@ -269,14 +269,15 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleManageUser(user)}
-                      >
-                        <Settings className="h-4 w-4 mr-1" />
-                        Manage
-                      </Button>
+                      <Link href={`/admin/users/${user.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Manage
+                        </Button>
+                      </Link>
                       <Button
                         variant="outline"
                         size="sm"

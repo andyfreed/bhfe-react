@@ -104,40 +104,6 @@ npm run dev
 
 2. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-### Docker Development (macOS)
-
-You can also use Docker to run the application, which ensures a consistent development environment:
-
-1. Make sure Docker Desktop is installed on your Mac:
-```bash
-docker --version
-```
-
-2. Create a `.env` file in the root directory with your Supabase credentials:
-```
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-```
-
-3. Start the development environment:
-```bash
-docker compose -f docker-compose.dev.yml up --build
-```
-
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-5. To stop the Docker containers, press `Ctrl+C` in the terminal or run:
-```bash
-docker compose -f docker-compose.dev.yml down
-```
-
-Benefits of using Docker for development:
-- Consistent environment across all development machines
-- No need to install Node.js locally
-- Live code changes are automatically detected (using volume mounts)
-- Easier onboarding for new developers
-
 ### Admin Access
 
 The admin section is protected and requires authentication. To access:
@@ -195,6 +161,27 @@ Common issues:
    - Try logging out and back in
 
 For more help, please submit an issue on GitHub.
+
+## Deployment
+
+### Digital Ocean App Platform
+
+This application is optimized for deployment on Digital Ocean App Platform. For detailed deployment instructions, see [DEPLOY_DIGITAL_OCEAN.md](./DEPLOY_DIGITAL_OCEAN.md).
+
+Quick deployment steps:
+1. Push your code to GitHub
+2. Create a new App in Digital Ocean App Platform
+3. Connect to your GitHub repository
+4. Set the required environment variables
+5. Deploy
+
+### Other Hosting Options
+
+The application can also be deployed to any hosting platform that supports Node.js applications:
+- Vercel
+- Netlify
+- AWS
+- Any VPS or dedicated server with Node.js installed
 
 # Cross-Computer Development Setup
 

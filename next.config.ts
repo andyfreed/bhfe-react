@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
-  output: 'standalone', // Enable standalone output for Docker
   async headers() {
     return [
       {
