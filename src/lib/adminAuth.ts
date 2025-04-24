@@ -4,10 +4,9 @@
 
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { isDevelopment, isMockAuthEnabled, hasValidSupabaseCredentials } from '@/lib/devUtils';
 
-// Determine if we're in mock mode
-const useMockClient = isDevelopment && (isMockAuthEnabled || !hasValidSupabaseCredentials());
+// Mock client disabled – always use live Supabase
+const useMockClient = false;
 
 /**
  * Checks for an admin token and returns a fixed admin user ID if valid
@@ -16,7 +15,7 @@ const useMockClient = isDevelopment && (isMockAuthEnabled || !hasValidSupabaseCr
 export async function checkAdminAccess(): Promise<string | null> {
   try {
     // Check for admin token
-    const adminToken = getServerAdminToken();
+    const adminToken = await getServerAdminToken();
     console.log('Admin token check:', adminToken);
     
     if (adminToken && isValidAdminToken(adminToken)) {

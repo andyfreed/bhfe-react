@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 import { cookies } from 'next/headers';
+import { Address, LicenseEntry } from '@/types/user';
 
 // Verify authentication and admin status
 async function verifyAdminAuth() {
@@ -90,11 +91,14 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Fetch profile data from profiles table
+    // Fetch profile data with new columns
     console.log('Fetching profile data for user ID:', userId);
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('role, full_name, company, phone')
+      .select(`role, full_name, company, phone,
+               first_name, last_name,
+               billing_street, billing_city, billing_state, billing_zip, billing_country,
+               shipping_street, shipping_city, shipping_state, shipping_zip, shipping_country`)
       .eq('id', userId)
       .single();
 
@@ -104,6 +108,12 @@ export async function GET(
       console.log('Profile data retrieved:', profileData);
     }
     
+    // Fetch licenses list
+    const { data: licensesData } = await supabase
+      .from('user_licenses')
+      .select('id, license_type, license_number')
+      .eq('user_id', userId);
+
     try {
       // Construct complete user object combining auth data and profile data
       const user = {
@@ -112,9 +122,25 @@ export async function GET(
         created_at: authUser.created_at,
         last_sign_in_at: authUser.last_sign_in_at,
         role: profileData?.role || authUser.role || 'user',
-        full_name: profileData?.full_name || '',
+        first_name: profileData?.first_name || '',
+        last_name: profileData?.last_name || '',
         company: profileData?.company || '',
         phone: profileData?.phone || '',
+        billing_address: {
+          street: profileData?.billing_street ?? undefined,
+          city: profileData?.billing_city ?? undefined,
+          state: profileData?.billing_state ?? undefined,
+          zip: profileData?.billing_zip ?? undefined,
+          country: profileData?.billing_country ?? undefined,
+        } as Address,
+        shipping_address: {
+          street: profileData?.shipping_street ?? undefined,
+          city: profileData?.shipping_city ?? undefined,
+          state: profileData?.shipping_state ?? undefined,
+          zip: profileData?.shipping_zip ?? undefined,
+          country: profileData?.shipping_country ?? undefined,
+        } as Address,
+        licenses: licensesData ?? [] as LicenseEntry[],
       };
       
       console.log('Returning complete user data:', user.email, user.role);
@@ -141,10 +167,18 @@ export async function PUT(
     const resolvedParams = params instanceof Promise ? await params : params;
     const userId = resolvedParams.id;
     const body = await request.json();
-    const { email, full_name, company, phone, role } = body;
+    const { email,
+            first_name,
+            last_name,
+            company,
+            phone,
+            role,
+            billing_address,
+            shipping_address,
+            licenses } = body;
 
     console.log('Processing update for user:', userId);
-    console.log('Update data:', { email, full_name, company, phone, role });
+    console.log('Update data:', { email, first_name, last_name, company, phone, role, billing_address, shipping_address, licenses });
     
     const supabase = createAdminSupabase();
 
@@ -185,10 +219,21 @@ export async function PUT(
           .from('profiles')
           .insert({
             id: userId,
-            full_name,
+            first_name,
+            last_name,
             company,
             phone,
             role,
+            billing_street: billing_address?.street,
+            billing_city: billing_address?.city,
+            billing_state: billing_address?.state,
+            billing_zip: billing_address?.zip,
+            billing_country: billing_address?.country,
+            shipping_street: shipping_address?.street,
+            shipping_city: shipping_address?.city,
+            shipping_state: shipping_address?.state,
+            shipping_zip: shipping_address?.zip,
+            shipping_country: shipping_address?.country,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
@@ -204,10 +249,21 @@ export async function PUT(
       console.log('Updating existing profile:', existingProfile.id);
       
       const updateData = { 
-        full_name, 
-        company, 
-        phone, 
-        role, 
+        first_name,
+        last_name,
+        company,
+        phone,
+        role,
+        billing_street: billing_address?.street,
+        billing_city: billing_address?.city,
+        billing_state: billing_address?.state,
+        billing_zip: billing_address?.zip,
+        billing_country: billing_address?.country,
+        shipping_street: shipping_address?.street,
+        shipping_city: shipping_address?.city,
+        shipping_state: shipping_address?.state,
+        shipping_zip: shipping_address?.zip,
+        shipping_country: shipping_address?.country,
         updated_at: new Date().toISOString() 
       };
       
@@ -251,11 +307,25 @@ export async function PUT(
       console.warn('Error updating public.users table:', usersUpdateError);
     }
 
+    // Handle licenses: simple strategy -> delete all existing and insert new list
+    if (Array.isArray(licenses)) {
+      await supabase.from('user_licenses').delete().eq('user_id', userId);
+      if (licenses.length) {
+        const insertRows = licenses.map((lic: LicenseEntry) => ({
+          user_id: userId,
+          license_type: lic.license_type,
+          license_number: lic.license_number,
+        }));
+        await supabase.from('user_licenses').insert(insertRows);
+      }
+    }
+
     // Return the updated user data
     return NextResponse.json({ 
       id: userId,
       email, 
-      full_name, 
+      first_name,
+      last_name,
       company, 
       phone, 
       role 

@@ -119,6 +119,7 @@ export default function AdminUserDetailPage() {
           if (response.status === 404) {
             setErrorMessage('User not found');
             setIsLoading(false);
+            setIsLoadingEnrollments(false);
             return;
           }
           throw new Error(`Failed to fetch user data: ${response.status}`);
@@ -149,6 +150,7 @@ export default function AdminUserDetailPage() {
         }
         const enrollmentData = await enrollmentsResponse.json();
         setEnrollments(enrollmentData.enrollments || []);
+        setIsLoadingEnrollments(false);
 
         // Fetch all courses
         const coursesResponse = await fetch(`/api/admin/courses`, {
@@ -164,6 +166,7 @@ export default function AdminUserDetailPage() {
         const availableCourses = courseData.courses?.filter((course: Course) => !enrolledCourseIds.has(course.id)) || [];
         
         setAvailableCourses(availableCourses);
+        setIsLoadingEnrollments(false);
 
         // If we got this far everything succeeded – clear any previous
         // error banner that may have been set by earlier attempts.
@@ -176,6 +179,7 @@ export default function AdminUserDetailPage() {
         console.error('Error fetching data:', error);
         
         // If this is a critical error that prevents rendering the page, set it as an unhandled error
+        setIsLoadingEnrollments(false);
         if (isLoading && !user) {
           setUnhandledError(error as Error);
         } else {
@@ -704,132 +708,53 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* User profile information */}
-          <div className="lg:col-span-1">
-            <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+        <div>
+          <div className="space-y-6">
+            {/* Summary card */}
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
               <div className="p-6 border-b flex justify-between items-center">
                 <div>
                   <h2 className="text-xl font-semibold mb-1">{user.email}</h2>
                   <p className="text-gray-500 text-sm">User ID: {user.id}</p>
                 </div>
               </div>
-              
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                
-                // Get form values
-                const form = e.target as HTMLFormElement;
-                const formData = new FormData(form);
-                
-                // Create update data with the form values
-                const updatedData = {
-                  email: user.email,
-                  full_name: formData.get('full_name') as string,
-                  company: formData.get('company') as string,
-                  phone: formData.get('phone') as string,
-                  role: formData.get('role') as string
-                };
-                
-                console.log('Form submitted with data:', updatedData);
-                handleProfileUpdateSuccess(updatedData);
-              }}>
-                <div className="p-6 space-y-4">
-                  <h3 className="text-lg font-medium mb-2">Account Information</h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Email Address</label>
-                      <input
-                        type="text"
-                        value={user.email}
-                        readOnly
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Email cannot be changed directly</p>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Full Name</label>
-                      <input
-                        type="text"
-                        name="full_name"
-                        defaultValue={user.profile?.full_name || ''}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Company</label>
-                      <input
-                        type="text"
-                        name="company"
-                        defaultValue={user.profile?.company || ''}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Phone</label>
-                      <input
-                        type="text"
-                        name="phone"
-                        defaultValue={user.profile?.phone || ''}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Role</label>
-                      <select
-                        name="role"
-                        defaultValue={user.role || 'user'}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      >
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="pt-2">
-                    <p className="text-sm text-gray-500 mb-2">Account Created: {new Date(user.created_at).toLocaleString()}</p>
-                    <p className="text-sm text-gray-500">Last Sign In: {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never signed in'}</p>
-                  </div>
-                  
-                  <div className="pt-4 flex justify-between">
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        disabled={isSendingPasswordReset}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-                      >
-                        {isSendingPasswordReset ? 'Sending...' : 'Reset Password'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteUser}
-                        disabled={isDeleting}
-                        className="inline-flex items-center px-3 py-2 border border-red-300 text-sm rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none"
-                      >
-                        {isDeleting ? 'Deleting...' : 'Delete User'}
-                      </button>
-                    </div>
-                    
-                    <button
-                      type="submit"
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
+              <div className="p-6 space-y-4">
+                <h3 className="text-lg font-medium mb-2">Account Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
+                  <div><span className="font-medium">Email:</span> {user.email}</div>
+                  {user.profile?.full_name && (
+                    <div><span className="font-medium">Name:</span> {user.profile.full_name}</div>
+                  )}
+                  {user.profile?.company && (
+                    <div><span className="font-medium">Company:</span> {user.profile.company}</div>
+                  )}
+                  {user.profile?.phone && (
+                    <div><span className="font-medium">Phone:</span> {user.profile.phone}</div>
+                  )}
+                  <div><span className="font-medium">Role:</span> {user.role || 'user'}</div>
                 </div>
-              </form>
+                <div className="pt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePasswordReset}
+                    disabled={isSendingPasswordReset}
+                    className="inline-flex justify-center px-3 py-2 border border-gray-300 text-sm rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                  >
+                    {isSendingPasswordReset ? 'Sending...' : 'Reset Password'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteUser}
+                    disabled={isDeleting}
+                    className="inline-flex justify-center px-3 py-2 border border-red-300 text-sm rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete User'}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="lg:col-span-2">
+            {/* Enrollments card */}
             <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
               <div className="p-6 border-b flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Course Enrollments</h2>
@@ -1018,8 +943,22 @@ export default function AdminUserDetailPage() {
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Account actions moved to the user profile form */}
+          {/* Full-width editable profile form */}
+          <div className="bg-white shadow-md rounded-lg overflow-hidden mt-6">
+            <UserProfileForm
+              userId={userId as string}
+              initialData={{
+                email: user.email,
+                full_name: user.profile?.full_name,
+                company: user.profile?.company,
+                phone: user.profile?.phone,
+                role: user.role,
+              }}
+              onSuccess={handleProfileUpdateSuccess}
+              onCancel={() => null}
+            />
           </div>
         </div>
       )}
