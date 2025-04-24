@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
-import { isDevelopment, isMockAuthEnabled, hasValidSupabaseCredentials, logDevEnvironmentStatus } from './devUtils';
+import { isDevelopment, logDevEnvironmentStatus } from './devUtils';
 
 // Get the Supabase URL and key from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
 
-// Determine if we should use mock mode only if explicitly enabled or no valid credentials
-const useMockClient = isDevelopment && (isMockAuthEnabled || !hasValidSupabaseCredentials());
+// Live mode only; mock client disabled
+const useMockClient = false;
 
 // Log environment status during development
 if (isDevelopment) {

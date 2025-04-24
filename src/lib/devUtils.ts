@@ -15,8 +15,7 @@ export const isDevelopment = process.env.NODE_ENV === 'development';
  * This can be enabled by setting NEXT_PUBLIC_USE_MOCK_AUTH=true in .env.local
  * We explicitly check for the string "true" to ensure it's not enabled accidentally
  */
-export const isMockAuthEnabled = isDevelopment && 
-  process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true';
+export const isMockAuthEnabled = false; // mock auth disabled
 
 /**
  * Check if we have valid Supabase credentials

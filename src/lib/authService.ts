@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { isDevelopment, isMockAuthEnabled } from './devUtils';
+import { isDevelopment } from './devUtils';
 
-// Check if we're in development mode and should use mock auth
-const useMockAuth = isMockAuthEnabled;
+// Always use real Supabase auth
+const useMockAuth = false;
 
 // Mock user object for development
 const MOCK_USER = {
