@@ -13,7 +13,8 @@
     "add-eaotrp": "node src/scripts/add-eaotrp-enum.js",
     "db:migrate": "node scripts/apply-migration.js",
     "configure:storage": "node scripts/configure-supabase-storage.js",
-    "test:my-courses": "echo 'Setting admin token cookie and opening my-courses page...' && open 'http://localhost:3000/my-courses'"
+    "test:my-courses": "echo 'Setting admin token cookie and opening my-courses page...' && open 'http://localhost:3000/my-courses'",
+    "deploy:do": "./scripts/deploy-to-do.sh"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.3",
