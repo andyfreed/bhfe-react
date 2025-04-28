@@ -57,10 +57,39 @@ export default function CourseContentPage() {
 
         // Check if user is logged in
         const { data: user, error: userError } = await getUser();
+        console.log('User login check result:', user ? 'Logged in' : 'Not logged in', userError ? `Error: ${userError.message}` : '');
+        
         if (userError || !user) {
+          console.error('User not logged in or error:', userError);
           router.push('/auth/login');
           return;
         }
+
+        // First check if the user is enrolled in this course
+        const enrollmentCheckUrl = `/api/user/enrollments/check?courseId=${courseId}&email=${encodeURIComponent(user.email)}`;
+        console.log('Checking enrollment with URL:', enrollmentCheckUrl);
+        
+        const enrollmentCheckResponse = await fetch(enrollmentCheckUrl);
+        console.log('Enrollment check response status:', enrollmentCheckResponse.status);
+        
+        let enrollmentCheckData;
+        try {
+          enrollmentCheckData = await enrollmentCheckResponse.json();
+          console.log('Enrollment check result:', enrollmentCheckData);
+        } catch (jsonError) {
+          console.error('Failed to parse enrollment check JSON response:', jsonError);
+          router.push(`/courses/${courseId}`);
+          return;
+        }
+        
+        if (!enrollmentCheckResponse.ok || !enrollmentCheckData.isEnrolled) {
+          console.error('Enrollment check failed:', JSON.stringify(enrollmentCheckData));
+          // Not enrolled, redirect to course page
+          router.push(`/courses/${courseId}`);
+          return;
+        }
+        
+        console.log('User is enrolled in this course, proceeding to fetch content');
 
         // Fetch course details
         const courseResponse = await fetch(`/api/courses/${courseId}`);
@@ -80,28 +109,15 @@ export default function CourseContentPage() {
           console.error('Failed to fetch exams:', examsResponse.status);
         }
 
-        // Fetch user enrollments to check if enrolled in this course
-        const enrollmentsResponse = await fetch('/api/user/enrollments');
-        if (!enrollmentsResponse.ok) {
-          throw new Error(`Failed to fetch enrollments: ${enrollmentsResponse.status}`);
-        }
-        
-        const enrollmentsData = await enrollmentsResponse.json();
-        console.log('Enrollments data:', enrollmentsData);
-        
-        // Find the enrollment for this course
-        const enrollments = enrollmentsData.enrollments || [];
-        const foundEnrollment = enrollments.find((e: any) => 
-          e.course_id === courseId || (e.course && e.course.id === courseId)
-        );
-        
-        if (!foundEnrollment) {
-          // Not enrolled, redirect to course page
-          router.push(`/courses/${courseId}`);
-          return;
-        }
-        
-        setEnrollment(foundEnrollment);
+        // Set enrollment information from the check data
+        setEnrollment({
+          id: enrollmentCheckData.enrollment.id,
+          course_id: courseId,
+          progress: enrollmentCheckData.enrollment.progress,
+          completed: enrollmentCheckData.enrollment.completed,
+          enrolled_at: new Date().toISOString(), // We don't have this from check, use current date
+          course: courseData
+        });
 
       } catch (error) {
         console.error('Error fetching course data:', error);

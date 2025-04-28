@@ -24,6 +24,8 @@ interface Enrollment {
   enrolled_at: string;
   enrollment_type: string;
   enrollment_notes?: string;
+  exam_score?: number | null;
+  exam_passed?: boolean | null;
   user: User;
   course: Course;
 }
@@ -64,6 +66,8 @@ export default function AdminEnrollmentsPage() {
       completed: false,
       enrolled_at: new Date().toISOString(),
       enrollment_type: 'paid',
+      exam_score: null,
+      exam_passed: null,
       user: mockUsers[0],
       course: mockCourses[0],
     },
@@ -76,6 +80,8 @@ export default function AdminEnrollmentsPage() {
       enrolled_at: new Date().toISOString(),
       enrollment_type: 'admin',
       enrollment_notes: 'Complimentary enrollment',
+      exam_score: 85,
+      exam_passed: true,
       user: mockUsers[1],
       course: mockCourses[1],
     },
@@ -533,6 +539,9 @@ export default function AdminEnrollmentsPage() {
                     Type
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Exam Results
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -555,7 +564,7 @@ export default function AdminEnrollmentsPage() {
                         ></div>
                       </div>
                       <span className="text-xs text-gray-500 mt-1">
-                        {enrollment.progress}% {enrollment.completed && '(Completed)'}
+                        {enrollment.progress}%
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -570,7 +579,31 @@ export default function AdminEnrollmentsPage() {
                         {enrollment.enrollment_type === 'self' ? 'Self-enrolled' : 'Admin'}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {enrollment.exam_score !== null && enrollment.exam_score !== undefined ? (
+                        <div>
+                          <span className="font-medium">{enrollment.exam_score}%</span>
+                          {enrollment.exam_passed !== null && enrollment.exam_passed !== undefined && (
+                            <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              enrollment.exam_passed
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {enrollment.exam_passed ? 'Passed' : 'Failed'}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Not taken</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Link
+                        href={`/admin/enrollments/${enrollment.id}`}
+                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      >
+                        View
+                      </Link>
                       <button
                         onClick={() => handleDeleteEnrollment(enrollment.id)}
                         className="text-red-600 hover:text-red-900"

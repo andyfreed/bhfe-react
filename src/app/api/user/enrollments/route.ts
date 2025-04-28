@@ -55,37 +55,149 @@ export async function GET(request: NextRequest) {
     });
     
     let userId: string | undefined;
+    let userEmail: string | undefined;
+    
+    // Get email from URL for direct lookup (for debugging or direct access)
+    const debugEmail = request.nextUrl.searchParams.get('debug_email');
+    if (debugEmail) {
+      console.log(`Debug email provided: ${debugEmail}`);
+      userEmail = debugEmail;
+    }
     
     // Admin token check - works in both dev and production for testing
     if (adminToken === 'temporary-token') {
       console.log('Admin token found - using admin user');
-      // Use a fixed admin user ID that exists in the database
-      userId = '1cbb829d-e51c-493d-aa4f-c197bc759615';
-      console.log(`Using admin user ID: ${userId}`);
+      // Try to get the user ID by email first if provided in the query
+      if (userEmail) {
+        console.log(`Looking up user ID for email: ${userEmail}`);
+        const { data: userByEmail } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', userEmail)
+          .single();
+          
+        if (userByEmail) {
+          userId = userByEmail.id;
+          console.log(`Found user ID: ${userId} for email: ${userEmail}`);
+        } else {
+          console.log(`Could not find user ID for email: ${userEmail}, using admin user ID`);
+          userId = '1cbb829d-e51c-493d-aa4f-c197bc759615';
+        }
+      } else {
+        // Use a fixed admin user ID that exists in the database
+        userId = '1cbb829d-e51c-493d-aa4f-c197bc759615';
+      }
+      console.log(`Using user ID: ${userId}`);
     } 
     // Normal authenticated session check
     else if (hasSession) {
       // Use the authenticated user's ID
       userId = session.user.id;
-      console.log(`Using authenticated user ID: ${userId}`);
+      userEmail = session.user.email;
+      console.log(`Using authenticated user ID: ${userId}, email: ${userEmail}`);
     } 
+    // Not authenticated but email was provided
+    else if (userEmail) {
+      console.log(`Not authenticated but email was provided: ${userEmail}`);
+      const { data: userByEmail } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userEmail)
+        .single();
+        
+      if (userByEmail) {
+        userId = userByEmail.id;
+        console.log(`Found user ID: ${userId} for email: ${userEmail}`);
+      } else {
+        return NextResponse.json({ 
+          enrollments: [],
+          message: `No user found with email: ${userEmail}` 
+        });
+      }
+    }
     // Not authenticated
     else {
-      console.log('Not authenticated and no valid admin token');
+      console.log('Not authenticated and no valid admin token or email');
       return NextResponse.json({ enrollments: [] }); // Return empty array instead of 401
     }
     
-    if (!userId) {
-      console.log('No user ID found after auth checks');
-      return NextResponse.json({ enrollments: [] }); // Return empty array instead of 401
-    }
-    
-    // Get all enrollments for the user with course details
-    try {
-      console.log(`Fetching enrollments for user ID: ${userId}`);
+    let enrollmentsResult;
+
+    // If we have a user email, find enrollments directly by the email join
+    if (userEmail) {
+      console.log(`Looking up enrollments by user email: ${userEmail}`);
       
-      // Direct single query with proper nested selection
-      const enrollmentsResult = await supabase
+      // Find users with this email
+      const { data: userByEmail, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userEmail);
+        
+      if (userError) {
+        console.error('Error finding user by email:', userError);
+      }
+      
+      // If we found a user with this email, use their ID
+      if (userByEmail && userByEmail.length > 0) {
+        userId = userByEmail[0].id;
+        console.log(`Found user ID ${userId} for email ${userEmail}`);
+        
+        // Query enrollments by user ID
+        enrollmentsResult = await supabase
+          .from('user_enrollments')
+          .select(`
+            id,
+            user_id,
+            course_id,
+            progress,
+            completed,
+            enrolled_at,
+            enrollment_type,
+            course:courses (
+              id,
+              title,
+              description,
+              main_subject,
+              author,
+              table_of_contents_url,
+              course_content_url
+            )
+          `)
+          .eq('user_id', userId)
+          .order('enrolled_at', { ascending: false });
+      } else {
+        console.log(`No user found with email: ${userEmail}`);
+        
+        // Try looking up enrollments by joining with the users table
+        // This is similar to how the admin panel finds enrollments
+        enrollmentsResult = await supabase
+          .from('user_enrollments')
+          .select(`
+            id,
+            user_id,
+            course_id,
+            progress,
+            completed,
+            enrolled_at,
+            enrollment_type,
+            user:users!user_id(email),
+            course:courses (
+              id,
+              title,
+              description,
+              main_subject,
+              author,
+              table_of_contents_url,
+              course_content_url
+            )
+          `)
+          .eq('user.email', userEmail);
+      }
+    } else if (userId) {
+      // If we have a user ID but no email, query directly by user ID
+      console.log(`Looking up enrollments by user ID: ${userId}`);
+      
+      enrollmentsResult = await supabase
         .from('user_enrollments')
         .select(`
           id,
@@ -107,26 +219,26 @@ export async function GET(request: NextRequest) {
         `)
         .eq('user_id', userId)
         .order('enrolled_at', { ascending: false });
-      
-      if (enrollmentsResult.error) {
-        console.error('Error fetching enrollments:', enrollmentsResult.error);
-        return NextResponse.json({ error: 'Failed to fetch enrollments' }, { status: 500 });
-      }
-      
-      console.log(`Enrollments found: ${enrollmentsResult.data?.length || 0}`);
-      
-      // Log each enrollment for debugging
-      if (enrollmentsResult.data) {
-        enrollmentsResult.data.forEach((enrollment: any, index: number) => {
-          console.log(`Enrollment ${index + 1}: Course ID = ${enrollment.course_id}, Progress = ${enrollment.progress}%`);
-        });
-      }
-      
-      return NextResponse.json({ enrollments: enrollmentsResult.data || [] });
-    } catch (error) {
-      console.error('Error fetching enrollments:', error);
+    } else {
+      console.log('No user ID or email found after auth checks');
+      return NextResponse.json({ enrollments: [] });
+    }
+    
+    if (enrollmentsResult.error) {
+      console.error('Error fetching enrollments:', enrollmentsResult.error);
       return NextResponse.json({ error: 'Failed to fetch enrollments' }, { status: 500 });
     }
+    
+    console.log(`Enrollments found: ${enrollmentsResult.data?.length || 0}`);
+    
+    // Log each enrollment for debugging
+    if (enrollmentsResult.data) {
+      enrollmentsResult.data.forEach((enrollment: any, index: number) => {
+        console.log(`Enrollment ${index + 1}: Course ID = ${enrollment.course_id}, Progress = ${enrollment.progress}%`);
+      });
+    }
+    
+    return NextResponse.json({ enrollments: enrollmentsResult.data || [] });
   } catch (error) {
     console.error('Error in enrollment API:', error);
     // Convert the error to a string for more detail

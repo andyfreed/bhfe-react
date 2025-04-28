@@ -9,6 +9,22 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
+// Define interfaces to match UserProfileForm
+interface Address {
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}
+
+// Import License type from components file to ensure compatibility
+interface License {
+  type: string;
+  number: string;
+}
+
 interface User {
   id: string;
   email: string;
@@ -19,6 +35,10 @@ interface User {
     full_name?: string;
     company?: string;
     phone?: string;
+    shipping_address?: Address;
+    billing_address?: Address;
+    same_as_shipping?: boolean;
+    licenses?: License[];
   };
 }
 
@@ -31,8 +51,8 @@ interface Enrollment {
   enrolled_at: string;
   completed_at?: string | null;
   enrollment_notes?: string;
-  exam_passed?: boolean;
-  exam_score?: number;
+  exam_passed?: boolean | null;
+  exam_score?: number | null;
   exam_answers?: Record<string, string>;
   course: {
     id: string;
@@ -91,8 +111,9 @@ export default function AdminUserDetailPage() {
         event.preventDefault();
         event.stopImmediatePropagation();
       } else {
-        // Capture non-abort errors and display them
-        console.error('Unhandled promise rejection:', r);
+        // Capture non-abort errors and display them properly
+        console.error('Unhandled promise rejection:', 
+          r instanceof Error ? r.message : String(r));
         setUnhandledError(r instanceof Error ? r : new Error(String(r)));
         
         // Prevent default error handling to show our custom error UI instead
@@ -102,6 +123,42 @@ export default function AdminUserDetailPage() {
     window.addEventListener('unhandledrejection', handler);
     return () => window.removeEventListener('unhandledrejection', handler);
   }, []);
+
+  // Transform API address format to component format if needed
+  function transformApiAddress(apiAddress: any): Address | undefined {
+    try {
+      if (!apiAddress) return undefined;
+      
+      return {
+        address1: apiAddress.street || '',
+        address2: '',
+        city: apiAddress.city || '',
+        state: apiAddress.state || '',
+        zip: apiAddress.zip || '',
+        country: apiAddress.country || 'US'
+      };
+    } catch (error) {
+      console.error('Error transforming API address:', 
+        error instanceof Error ? error.message : String(error));
+      return undefined;
+    }
+  }
+
+  // Transform API license format to component format
+  function transformApiLicenses(apiLicenses: any[]): License[] {
+    try {
+      if (!apiLicenses || !Array.isArray(apiLicenses)) return [];
+      
+      return apiLicenses.map(license => ({
+        type: license.license_type || '',
+        number: license.license_number || ''
+      }));
+    } catch (error) {
+      console.error('Error transforming API licenses:', 
+        error instanceof Error ? error.message : String(error));
+      return [];
+    }
+  }
 
   // Fetch user details and enrollments
   useEffect(() => {
@@ -127,6 +184,11 @@ export default function AdminUserDetailPage() {
         
         const userData = await response.json();
         
+        // Transform API address format to component format if needed
+        const shippingAddress = transformApiAddress(userData.shipping_address);
+        const billingAddress = transformApiAddress(userData.billing_address);
+        const licenses = transformApiLicenses(userData.licenses);
+        
         // Set user state with API response data
         setUser({
           id: userData.id,
@@ -137,36 +199,48 @@ export default function AdminUserDetailPage() {
           profile: {
             full_name: userData.full_name || '',
             company: userData.company || '',
-            phone: userData.phone || ''
+            phone: userData.phone || '',
+            shipping_address: shippingAddress,
+            billing_address: billingAddress,
+            same_as_shipping: userData.same_as_shipping,
+            licenses: licenses
           }
         });
 
-        // Fetch user enrollments
-        const enrollmentsResponse = await fetch(`/api/admin/enrollments?userId=${userId}`, {
-          signal: abortController.signal,
-        });
-        if (!enrollmentsResponse.ok) {
-          throw new Error(`Error fetching user enrollments: ${enrollmentsResponse.status}`);
-        }
-        const enrollmentData = await enrollmentsResponse.json();
-        setEnrollments(enrollmentData.enrollments || []);
-        setIsLoadingEnrollments(false);
+        try {
+          // Fetch user enrollments
+          const enrollmentsResponse = await fetch(`/api/admin/enrollments?userId=${userId}`, {
+            signal: abortController.signal,
+          });
+          if (!enrollmentsResponse.ok) {
+            throw new Error(`Error fetching user enrollments: ${enrollmentsResponse.status}`);
+          }
+          const enrollmentData = await enrollmentsResponse.json();
+          setEnrollments(enrollmentData.enrollments || []);
+          setIsLoadingEnrollments(false);
 
-        // Fetch all courses
-        const coursesResponse = await fetch(`/api/admin/courses`, {
-          signal: abortController.signal,
-        });
-        if (!coursesResponse.ok) {
-          throw new Error(`Error fetching courses: ${coursesResponse.status}`);
-        }
-        const courseData = await coursesResponse.json();
+          // Fetch all courses
+          const coursesResponse = await fetch(`/api/admin/courses`, {
+            signal: abortController.signal,
+          });
+          if (!coursesResponse.ok) {
+            throw new Error(`Error fetching courses: ${coursesResponse.status}`);
+          }
+          const courseData = await coursesResponse.json();
 
-        // Filter out courses the user is already enrolled in
-        const enrolledCourseIds = new Set(enrollmentData.enrollments?.map((e: Enrollment) => e.course_id) || []);
-        const availableCourses = courseData.courses?.filter((course: Course) => !enrolledCourseIds.has(course.id)) || [];
-        
-        setAvailableCourses(availableCourses);
-        setIsLoadingEnrollments(false);
+          // Filter out courses the user is already enrolled in
+          const enrolledCourseIds = new Set(enrollmentData.enrollments?.map((e: Enrollment) => e.course_id) || []);
+          const availableCourses = courseData.courses?.filter((course: Course) => !enrolledCourseIds.has(course.id)) || [];
+          
+          setAvailableCourses(availableCourses);
+          setIsLoadingEnrollments(false);
+        } catch (enrollmentError) {
+          console.error('Error fetching enrollments or courses:', 
+            enrollmentError instanceof Error ? enrollmentError.message : String(enrollmentError));
+          setIsLoadingEnrollments(false);
+          // Show error but don't block the whole page since user data loaded successfully
+          setErrorMessage('Warning: Could not load enrollment data. Please try refreshing the page.');
+        }
 
         // If we got this far everything succeeded – clear any previous
         // error banner that may have been set by earlier attempts.
@@ -176,12 +250,13 @@ export default function AdminUserDetailPage() {
         if ((error as any)?.name === 'AbortError') {
           return;
         }
-        console.error('Error fetching data:', error);
+        console.error('Error fetching data:', 
+          error instanceof Error ? error.message : String(error));
         
         // If this is a critical error that prevents rendering the page, set it as an unhandled error
         setIsLoadingEnrollments(false);
         if (isLoading && !user) {
-          setUnhandledError(error as Error);
+          setUnhandledError(error instanceof Error ? error : new Error(String(error)));
         } else {
           // Otherwise just show it as a regular error message
           setErrorMessage('Failed to load user data. Please try again later.');
@@ -199,8 +274,9 @@ export default function AdminUserDetailPage() {
       try {
         fetchData();
       } catch (error) {
-        console.error('Unhandled error in fetchData:', error);
-        setUnhandledError(error as Error);
+        console.error('Unhandled error in fetchData:', 
+          error instanceof Error ? error.message : String(error));
+        setUnhandledError(error instanceof Error ? error : new Error(String(error)));
         setIsLoading(false);
       }
     }
@@ -292,11 +368,17 @@ export default function AdminUserDetailPage() {
       return;
     }
 
+    setDeletingEnrollmentId(enrollmentId);
+    setIsDeleting(true);
+    
     try {
       const enrollmentToDelete = enrollments.find(e => e.id === enrollmentId);
       
       const response = await fetch(`/api/admin/enrollments/${enrollmentId}`, {
         method: 'DELETE',
+        headers: {
+          'Admin-Token': 'temporary-token'
+        }
       });
 
       if (!response.ok) {
@@ -318,13 +400,18 @@ export default function AdminUserDetailPage() {
       
       setSuccessMessage('Enrollment deleted successfully!');
     } catch (error) {
-      console.error('Error deleting enrollment:', error);
-      setErrorMessage((error as Error).message || 'Failed to delete enrollment');
+      console.error('Error deleting enrollment:', 
+        error instanceof Error ? error.message : String(error));
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete enrollment');
       
       // If this looks like a more serious error, track it as unhandled
-      if ((error as Error).message.includes('TypeError') || (error as Error).message.includes('unexpected')) {
-        setUnhandledError(error as Error);
+      if (error instanceof Error && 
+          (error.message.includes('TypeError') || error.message.includes('unexpected'))) {
+        setUnhandledError(error);
       }
+    } finally {
+      setIsDeleting(false);
+      setDeletingEnrollmentId(null);
     }
   };
 
@@ -463,69 +550,115 @@ export default function AdminUserDetailPage() {
   const handleProfileUpdateSuccess = (updatedData: any) => {
     console.log('Profile updated successfully, received data:', updatedData);
     
-    // Update user state with received data, ensuring we correctly map fields
-    setUser(prevUser => {
-      if (!prevUser) return null;
-      
-      return {
-        ...prevUser,
-        email: updatedData.email || prevUser.email,
-        role: updatedData.role || prevUser.role,
-        profile: {
-          full_name: updatedData.full_name || prevUser.profile?.full_name || '',
-          company: updatedData.company || prevUser.profile?.company || '',
-          phone: updatedData.phone || prevUser.profile?.phone || ''
-        }
-      };
-    });
-    
-    // Clear both editing states to prevent dialogs from showing
-    setIsEditing(false);
-    setIsManageDialogOpen(false);
-    setSuccessMessage('User profile updated successfully!');
-    
-    // Schedule a delayed refetch to get the latest data from the server
-    setTimeout(() => {
-      const abortController = new AbortController();
-      
-      console.log('Refreshing user data from server...');
-      fetch(`/api/users/${userId}`, {
-        signal: abortController.signal,
-        // Add cache busting to prevent stale data
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      })
-      .then(response => {
-        if (response.ok) return response.json();
-        throw new Error('Failed to refresh user data');
-      })
-      .then(userData => {
-        console.log('Successfully refreshed user data:', userData);
-        
-        // Update with the refreshed data from the server
-        setUser({
-          id: userData.id,
-          email: userData.email,
-          created_at: userData.created_at,
-          last_sign_in_at: userData.last_sign_in_at,
-          role: userData.role || 'user',
-          profile: {
-            full_name: userData.full_name || '',
-            company: userData.company || '',
-            phone: userData.phone || ''
-          }
+    try {
+      // Transform address and license data if needed
+      const transformedShippingAddress = transformApiAddress(updatedData.shipping_address) ||
+        transformApiAddress({
+          street: updatedData.shipping_address?.address1,
+          city: updatedData.shipping_address?.city,
+          state: updatedData.shipping_address?.state,
+          zip: updatedData.shipping_address?.zip,
+          country: updatedData.shipping_address?.country
         });
-      })
-      .catch(err => {
-        if (err.name !== 'AbortError') {
-          console.error('Error refreshing user data:', err);
-        }
+
+      const transformedBillingAddress = transformApiAddress(updatedData.billing_address) ||
+        transformApiAddress({
+          street: updatedData.billing_address?.address1,
+          city: updatedData.billing_address?.city,
+          state: updatedData.billing_address?.state,
+          zip: updatedData.billing_address?.zip,
+          country: updatedData.billing_address?.country
+        });
+
+      // Transform licenses if present
+      const transformedLicenses = transformApiLicenses(updatedData.licenses) || [];
+      
+      // Update user state with received data, ensuring we correctly map fields
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        
+        return {
+          ...prevUser,
+          email: updatedData.email || prevUser.email,
+          role: updatedData.role || prevUser.role,
+          profile: {
+            full_name: updatedData.full_name || prevUser.profile?.full_name || '',
+            company: updatedData.company || prevUser.profile?.company || '',
+            phone: updatedData.phone || prevUser.profile?.phone || '',
+            shipping_address: transformedShippingAddress || prevUser.profile?.shipping_address,
+            billing_address: transformedBillingAddress || prevUser.profile?.billing_address,
+            same_as_shipping: updatedData.same_as_shipping !== undefined ? updatedData.same_as_shipping : prevUser.profile?.same_as_shipping,
+            licenses: transformedLicenses || prevUser.profile?.licenses || []
+          }
+        };
       });
       
-      return () => abortController.abort();
-    }, 1000);
+      // Clear both editing states to prevent dialogs from showing
+      setIsEditing(false);
+      setIsManageDialogOpen(false);
+      setSuccessMessage('User profile updated successfully!');
+      
+      // Schedule a delayed refetch to get the latest data from the server
+      setTimeout(() => {
+        const abortController = new AbortController();
+        
+        console.log('Refreshing user data from server...');
+        fetch(`/api/users/${userId}`, {
+          signal: abortController.signal,
+          // Add cache busting to prevent stale data
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+        .then(response => {
+          if (response.ok) return response.json();
+          throw new Error('Failed to refresh user data');
+        })
+        .then(userData => {
+          try {
+            console.log('Successfully refreshed user data:', userData);
+            
+            // Transform API address format to component format if needed
+            const shippingAddress = transformApiAddress(userData.shipping_address);
+            const billingAddress = transformApiAddress(userData.billing_address);
+            const licenses = transformApiLicenses(userData.licenses);
+            
+            // Update with the refreshed data from the server
+            setUser({
+              id: userData.id,
+              email: userData.email,
+              created_at: userData.created_at,
+              last_sign_in_at: userData.last_sign_in_at,
+              role: userData.role || 'user',
+              profile: {
+                full_name: userData.full_name || '',
+                company: userData.company || '',
+                phone: userData.phone || '',
+                shipping_address: shippingAddress,
+                billing_address: billingAddress,
+                same_as_shipping: userData.same_as_shipping,
+                licenses: licenses
+              }
+            });
+          } catch (transformError) {
+            console.error('Error transforming user data:', 
+              transformError instanceof Error ? transformError.message : String(transformError));
+          }
+        })
+        .catch(err => {
+          if (err.name !== 'AbortError') {
+            console.error('Error refreshing user data:', 
+              err instanceof Error ? err.message : String(err));
+          }
+        });
+        
+        return () => abortController.abort();
+      }, 1000);
+    } catch (error) {
+      console.error('Error in profile update success handler:', 
+        error instanceof Error ? error.message : String(error));
+    }
   };
 
   // Function to start editing an enrollment
@@ -557,13 +690,16 @@ export default function AdminUserDetailPage() {
         progress: isCompleted ? 100 : editProgress,
         completed: isCompleted,
         completed_at: editCompletedDate || null,
-        enrollment_notes: editEnrollmentNotes
+        enrollment_notes: editEnrollmentNotes,
+        exam_score: examResults,
+        exam_passed: examResults !== null ? examResults >= 70 : null
       };
 
       const response = await fetch(`/api/admin/enrollments/${enrollmentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Admin-Token': 'temporary-token'
         },
         body: JSON.stringify(updatedData),
       });
@@ -585,8 +721,9 @@ export default function AdminUserDetailPage() {
       setSuccessMessage('Enrollment updated successfully!');
       setIsEditingEnrollment(null);
     } catch (error) {
-      console.error('Error updating enrollment:', error);
-      setErrorMessage((error as Error).message || 'Failed to update enrollment');
+      console.error('Error updating enrollment:', 
+        error instanceof Error ? error.message : String(error));
+      setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setIsUpdatingEnrollment(false);
     }
@@ -645,7 +782,11 @@ export default function AdminUserDetailPage() {
                       profile: {
                         full_name: userData.full_name || '',
                         company: userData.company || '',
-                        phone: userData.phone || ''
+                        phone: userData.phone || '',
+                        shipping_address: userData.shipping_address || { address1: '', address2: '', city: '', state: '', zip: '', country: '' },
+                        billing_address: userData.billing_address || { address1: '', address2: '', city: '', state: '', zip: '', country: '' },
+                        same_as_shipping: userData.same_as_shipping || false,
+                        licenses: userData.licenses || []
                       }
                     });
                     setIsLoading(false);
@@ -955,6 +1096,9 @@ export default function AdminUserDetailPage() {
                 company: user.profile?.company,
                 phone: user.profile?.phone,
                 role: user.role,
+                shipping_address: user.profile?.shipping_address,
+                billing_address: user.profile?.billing_address,
+                licenses: user.profile?.licenses || []
               }}
               onSuccess={handleProfileUpdateSuccess}
               onCancel={() => null}

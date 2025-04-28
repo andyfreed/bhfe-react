@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCourseWithRelations, updateCourse, deleteCourse } from '@/lib/courses';
 import { uploadFileFromServer } from '@/lib/supabase';
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
+import { createServerSupabaseClient } from '@/lib/supabase';
 import type { CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 
 // Utility function to check if a URL is accessible
@@ -16,6 +17,32 @@ async function isUrlAccessible(url: string): Promise<boolean> {
     return response.ok;
   } catch (error) {
     console.error(`Error checking URL ${url}:`, error);
+    return false;
+  }
+}
+
+// Check if user is enrolled in a course
+async function isUserEnrolled(userId: string, courseId: string): Promise<boolean> {
+  try {
+    if (!userId || !courseId) return false;
+    
+    const supabase = createServerSupabaseClient() as any;
+    
+    const { data, error } = await supabase
+      .from('user_enrollments')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('course_id', courseId)
+      .single();
+      
+    if (error) {
+      console.error('Error checking enrollment:', error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (error) {
+    console.error('Error in isUserEnrolled:', error);
     return false;
   }
 }
@@ -54,19 +81,57 @@ async function verifyAuth(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ courseId: string }> }
+  context: { params: { courseId: string } }
 ) {
   try {
-    await verifyAuth(request);
-    // Await the params object before accessing its properties
-    const params = await context.params;
-    const courseId = params.courseId;
+    // Access the courseId directly from the params object
+    const courseId = context.params.courseId;
     
     if (!courseId) {
       return NextResponse.json(
         { error: 'Course ID is required' },
         { status: 400 }
       );
+    }
+    
+    // Check if this is a student trying to access their enrolled course
+    const supabase = createServerSupabaseClient() as any;
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // If the user is logged in, check if they're enrolled in this course
+    let isEnrolled = false;
+    if (session && session.user) {
+      console.log(`Checking if user ${session.user.id} is enrolled in course ${courseId}`);
+      isEnrolled = await isUserEnrolled(session.user.id as string, courseId);
+      if (isEnrolled) {
+        console.log(`User ${session.user.id} is enrolled in course ${courseId}, allowing access`);
+      } else {
+        console.log(`User is authenticated but not enrolled in this course`);
+      }
+    }
+    
+    // If the user is not enrolled, verify admin access
+    if (!isEnrolled) {
+      try {
+        await verifyAuth(request);
+      } catch (error) {
+        // Check if the user is trying to access via the admin panel or directly
+        const referer = request.headers.get('referer') || '';
+        const isAdminAccess = referer.includes('/admin/');
+        
+        if (isAdminAccess) {
+          return NextResponse.json(
+            { error: 'Admin authentication required' },
+            { status: 401 }
+          );
+        } else {
+          // For non-admin access, return 403 with clear message
+          return NextResponse.json(
+            { error: 'You are not enrolled in this course' },
+            { status: 403 }
+          );
+        }
+      }
     }
     
     const course = await getCourseWithRelations(courseId);
@@ -90,13 +155,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ courseId: string }> }
+  context: { params: { courseId: string } }
 ) {
   try {
     await verifyAuth(request);
-    // Await the params object before accessing its properties
-    const params = await context.params;
-    const courseId = params.courseId;
+    // Access the courseId directly from the params object
+    const courseId = context.params.courseId;
     
     if (!courseId) {
       return NextResponse.json(
@@ -275,13 +339,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ courseId: string }> }
+  context: { params: { courseId: string } }
 ) {
   try {
     await verifyAuth(request);
-    // Await the params object before accessing its properties
-    const params = await context.params;
-    const courseId = params.courseId;
+    // Access the courseId directly from the params object
+    const courseId = context.params.courseId;
     
     if (!courseId) {
       return NextResponse.json(

@@ -5,14 +5,7 @@ import { Poppins } from 'next/font/google'
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { metadata } from './metadata';
-
-// Add error tracking for unhandled promise rejections
-if (typeof window !== 'undefined') {
-  window.addEventListener('unhandledrejection', (event) => {
-    console.error('UNHANDLED PROMISE REJECTION:', event.reason);
-    console.error('Stack:', event.reason?.stack);
-  });
-}
+import ClientWrapper from '@/components/ClientWrapper';
 
 const poppins = Poppins({ 
   subsets: ['latin'],
@@ -33,7 +26,9 @@ export default function RootLayout({
         <div className="flex flex-col min-h-screen backdrop-blur-sm">
           <Header />
           <main className="flex-grow">
-            {children}
+            <ClientWrapper>
+              {children}
+            </ClientWrapper>
           </main>
           <Footer />
         </div>
