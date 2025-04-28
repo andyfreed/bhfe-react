@@ -4,16 +4,22 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
 // Verify authentication and admin status
-async function verifyAdminAuth() {
+async function verifyAdminAuth(request: NextRequest) {
   // Allow everything in development
   if (process.env.NODE_ENV === 'development') {
     return true;
   }
 
   try {
+    // Check cookie
     const cookieStore = await cookies();
-    const token = cookieStore.get('admin_token')?.value;
-    return token === 'temporary-token';
+    const tokenFromCookie = cookieStore.get('admin_token')?.value;
+    
+    // Check header
+    const tokenFromHeader = request.headers.get('Admin-Token');
+    
+    // Return true if either token matches
+    return tokenFromCookie === 'temporary-token' || tokenFromHeader === 'temporary-token';
   } catch (error) {
     console.error('Error verifying admin auth:', error);
     return false;
@@ -32,7 +38,14 @@ export async function GET(
     
     const supabase = createServerSupabaseClient();
     
-    // Note: We're bypassing auth checks for now since we're using client-side localStorage auth
+    // Verify admin access
+    const isAdmin = await verifyAdminAuth(request);
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Unauthorized access' },
+        { status: 401 }
+      );
+    }
     
     const { data, error } = await supabase
       .from('user_enrollments')
@@ -157,7 +170,7 @@ export async function PATCH(
   }
 }
 
-// Define the PUT handler for updating enrollments
+// PUT endpoint to update an enrollment
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } | Promise<{ id: string }> }
@@ -168,58 +181,78 @@ export async function PUT(
     const id = resolvedParams.id;
     
     // Verify admin access
-    const isAdmin = await verifyAdminAuth();
+    const isAdmin = await verifyAdminAuth(request);
     if (!isAdmin) {
       return NextResponse.json(
-        { error: 'Unauthorized. Admin access required.' },
-        { status: 403 }
+        { error: 'Unauthorized access' },
+        { status: 401 }
       );
     }
     
-    // Get update data from request
+    // Get the request body
     const updateData = await request.json();
     
-    // Create Supabase client
     const supabase = createServerSupabaseClient();
     
-    // Update the enrollment
-    const updateResult = await supabase
+    // Extract the fields to update
+    const {
+      progress,
+      completed,
+      completed_at,
+      enrollment_notes,
+      exam_score,
+      exam_passed
+    } = updateData;
+    
+    const updates: Record<string, any> = {};
+    
+    // Only add defined fields
+    if (progress !== undefined) updates.progress = progress;
+    if (completed !== undefined) updates.completed = completed;
+    if (completed_at !== undefined) updates.completed_at = completed_at;
+    if (enrollment_notes !== undefined) updates.enrollment_notes = enrollment_notes;
+    if (exam_score !== undefined) updates.exam_score = exam_score;
+    if (exam_passed !== undefined) updates.exam_passed = exam_passed;
+    
+    // Add timestamp
+    updates.updated_at = new Date().toISOString();
+    
+    // Update the record
+    const result = await supabase
       .from('user_enrollments')
-      .update({
-        progress: updateData.progress,
-        completed: updateData.completed,
-        completed_at: updateData.completed_at,
-        enrollment_notes: updateData.enrollment_notes,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq('id', id);
-    
-    if (updateResult.error) {
+      
+    // Now fetch the updated record
+    if (!result.error) {
+      const { data: updatedEnrollment, error: fetchError } = await supabase
+        .from('user_enrollments')
+        .select(`
+          *,
+          user:user_id (id, email),
+          course:course_id (id, title, main_subject, description)
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        return NextResponse.json(
+          { error: fetchError.message },
+          { status: 500 }
+        );
+      }
+      
+      return NextResponse.json(updatedEnrollment);
+    } else {
       return NextResponse.json(
-        { error: `Failed to update enrollment: ${updateResult.error.message}` }, 
+        { error: result.error.message },
         { status: 500 }
       );
     }
-    
-    // Fetch the updated record
-    const { data, error: fetchError } = await supabase
-      .from('user_enrollments')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (fetchError) {
-      return NextResponse.json(
-        { error: `Failed to fetch updated enrollment: ${fetchError.message}` }, 
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json(data);
   } catch (error) {
     console.error('Error updating enrollment:', error);
     return NextResponse.json(
-      { error: `Internal server error: ${(error as Error).message}` }, 
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -237,7 +270,14 @@ export async function DELETE(
     
     const supabase = createServerSupabaseClient();
     
-    // Note: We're bypassing auth checks for now since we're using client-side localStorage auth
+    // Verify admin access
+    const isAdmin = await verifyAdminAuth(request);
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Unauthorized access' },
+        { status: 401 }
+      );
+    }
     
     // Delete the enrollment
     const { error: deleteError } = await supabase

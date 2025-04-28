@@ -105,7 +105,7 @@ export async function getServerAdminToken(): Promise<string | undefined> {
  * This must be used within a Server Component or Server Action
  */
 export function setServerAdminToken(): void {
-  setServerCookie('admin_token', 'allowed', {
+  setServerCookie('admin_token', 'temporary-token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

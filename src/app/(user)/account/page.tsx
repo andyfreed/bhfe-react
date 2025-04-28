@@ -91,8 +91,40 @@ export default function AccountPage() {
       
       console.log('Fetching enrollments for user:', user.email);
       
+      // Try the new simplified enrollment endpoint first
+      try {
+        const newResponse = await fetch(`/api/user/my-enrollments?email=${encodeURIComponent(user.email)}&t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (newResponse.ok) {
+          const newData = await newResponse.json();
+          console.log('Response from new enrollments endpoint:', newData);
+          
+          if (newData.enrollments && newData.enrollments.length > 0) {
+            console.log(`Found ${newData.enrollments.length} enrollments using new endpoint`);
+            setEnrollmentCount(newData.enrollments.length);
+            setEnrollments(newData.enrollments);
+            setIsLoading(false);
+            return;
+          } else {
+            console.log('No enrollments found using new endpoint');
+          }
+        } else {
+          console.log('New endpoint failed with status:', newResponse.status);
+        }
+      } catch (newEndpointError) {
+        console.error('Error with new endpoint:', newEndpointError);
+      }
+      
+      // Fall back to the original endpoint if the new one failed or returned no results
+      console.log('Falling back to original enrollment endpoint');
+      
       // Fetch user enrollments from the API with cache busting
-      const response = await fetch(`/api/user/enrollments?t=${Date.now()}&include_course_details=true`, {
+      const response = await fetch(`/api/user/enrollments?t=${Date.now()}&include_course_details=true&debug_email=${encodeURIComponent(user.email)}`, {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -111,10 +143,47 @@ export default function AccountPage() {
       const data = await response.json();
       console.log('Raw enrollment data received:', data);
       
-      // The API returns { enrollments: [...] }
+      // Check if we got enrollments
       if (data && Array.isArray(data.enrollments)) {
         if (data.enrollments.length === 0) {
           console.log('No enrollments found for this user');
+          
+          // Try directly fixing enrollments
+          console.log('Attempting to fix enrollments...');
+          try {
+            const fixResponse = await fetch(`/api/debug/fix-enrollments?email=${encodeURIComponent(user.email)}`);
+            if (fixResponse.ok) {
+              const fixResult = await fixResponse.json();
+              console.log('Fix enrollments result:', fixResult);
+              
+              if (fixResult.fixedEnrollments > 0) {
+                console.log(`Fixed ${fixResult.fixedEnrollments} enrollments, reloading...`);
+                // Retry fetching enrollments after fix
+                const retryResponse = await fetch(`/api/user/enrollments?t=${Date.now()}&include_course_details=true`, {
+                  headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                  }
+                });
+                
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  console.log('Retry enrollment data:', retryData);
+                  
+                  if (retryData.enrollments && retryData.enrollments.length > 0) {
+                    setEnrollmentCount(retryData.enrollments.length);
+                    setEnrollments(retryData.enrollments);
+                    return;
+                  }
+                }
+              }
+            } else {
+              console.log('Fix enrollments failed:', await fixResponse.text());
+            }
+          } catch (fixError) {
+            console.error('Error fixing enrollments:', fixError);
+          }
+          
           setEnrollmentCount(0);
         } else {
           console.log(`Found ${data.enrollments.length} enrollments`);

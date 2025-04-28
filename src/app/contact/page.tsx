@@ -25,7 +25,6 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [redirectToThankYou, setRedirectToThankYou] = useState(true);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -96,13 +95,8 @@ export default function ContactPage() {
         message: ''
       });
       
-      if (redirectToThankYou) {
-        // Redirect to thank you page
-        router.push('/contact/thank-you');
-      } else {
-        // Show success message inline
-        setSubmitSuccess(true);
-      }
+      // Redirect to thank you page
+      router.push('/contact/thank-you');
       
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -121,7 +115,7 @@ export default function ContactPage() {
               Contact Us
             </h1>
             <p className="text-theme-neutral-600 text-lg">
-              Have questions about our courses or need assistance? Reach out to our team and we'll be happy to help.
+              Have questions about our courses or need assistance? Reach out to us and we'll be happy to help.
             </p>
           </div>
 
@@ -229,24 +223,11 @@ export default function ContactPage() {
                   )}
                 </div>
                 
-                <div className="flex items-center pt-2">
-                  <input
-                    type="checkbox"
-                    id="redirectCheckbox"
-                    checked={redirectToThankYou}
-                    onChange={() => setRedirectToThankYou(!redirectToThankYou)}
-                    className="w-4 h-4 text-theme-primary-DEFAULT rounded border-theme-neutral-300 focus:ring-theme-primary-light"
-                  />
-                  <label htmlFor="redirectCheckbox" className="ml-2 text-sm text-theme-neutral-600">
-                    Show thank you page after submission
-                  </label>
-                </div>
-                
                 <div className="pt-4">
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full px-6 py-3 bg-theme-accent-DEFAULT text-white rounded-lg hover:bg-theme-accent-dark transition-colors disabled:bg-theme-neutral-400 disabled:cursor-not-allowed"
+                    className="w-full px-6 py-3 bg-theme-primary-DEFAULT !bg-[#4F46E5] text-white rounded-lg border-2 border-theme-primary-DEFAULT hover:bg-theme-primary-dark transition-colors disabled:bg-theme-neutral-400 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Submitting...' : 'Send Message'}
                   </button>
@@ -267,10 +248,10 @@ export default function ContactPage() {
                 Need immediate assistance? Call our support team.
               </p>
               <a
-                href="tel:+18005551234"
+                href="tel:+18005887039"
                 className="block mt-4 text-theme-primary-DEFAULT hover:underline"
               >
-                (800) 555-1234
+                (800) 588-7039
               </a>
             </div>
             
@@ -285,10 +266,10 @@ export default function ContactPage() {
                 Send us an email and we'll respond within 24 hours.
               </p>
               <a
-                href="mailto:support@bunnellhelfrich.com"
-                className="block mt-4 text-theme-primary-DEFAULT hover:underline"
+                href="mailto:contact@bhfe.com"
+                className="block mt-4 text-theme-primary-DEFAULT hover:underline break-all"
               >
-                support@bunnellhelfrich.com
+                contact@bhfe.com
               </a>
             </div>
             

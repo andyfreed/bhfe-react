@@ -4,8 +4,8 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
   try {
     // Set admin token cookie
-    const cookieStore = cookies();
-    cookieStore.set('admin_token', 'allowed', {
+    const cookieStore = await cookies();
+    cookieStore.set('admin_token', 'temporary-token', {
       httpOnly: true, 
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

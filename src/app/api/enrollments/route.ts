@@ -39,10 +39,24 @@ export async function POST(request: NextRequest) {
     // Create a server-side Supabase client (with service role key)
     const supabase = createServerSupabaseClient();
     
+    // Prepare enrollment data with defaults
+    const enrollmentData = {
+      user_id: enrollment.user_id,
+      course_id: enrollment.course_id,
+      progress: enrollment.progress || 0,
+      completed: enrollment.completed || false,
+      completed_at: enrollment.completed ? new Date().toISOString() : null,
+      enrollment_notes: enrollment.enrollment_notes || null,
+      enrolled_at: new Date().toISOString(),
+      enrollment_type: enrollment.enrollment_type || 'manual',
+      exam_score: enrollment.exam_score || null,
+      exam_passed: enrollment.exam_passed || null,
+    };
+    
     // Insert the enrollment using service role
     const { data, error } = await supabase
       .from('user_enrollments')
-      .insert(enrollment)
+      .insert(enrollmentData)
       .select('*, user:users(*), course:courses(*)');
     
     if (error) {

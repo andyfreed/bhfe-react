@@ -10,7 +10,7 @@ export default function AdminLoginPage() {
   const handleLogin = () => {
     try {
       // Set the admin token client-side
-      setAdminToken();
+      document.cookie = "admin_token=temporary-token; path=/; max-age=86400; samesite=lax";
       setSuccess(true);
       setError('');
     } catch (err) {

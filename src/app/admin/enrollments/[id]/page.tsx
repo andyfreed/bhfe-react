@@ -27,18 +27,23 @@ interface Enrollment {
   enrollment_notes?: string;
   completed_at?: string;
   last_accessed_at?: string;
+  exam_score?: number | null;
+  exam_passed?: boolean | null;
   user: User;
   course: Course;
 }
 
 export default function EnrollmentDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { id } = params;
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [progress, setProgress] = useState<number>(0);
-  const [completed, setCompleted] = useState<boolean>(false);
-  const [notes, setNotes] = useState<string>('');
+  const [progress, setProgress] = useState(0);
+  const [completed, setCompleted] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [examScore, setExamScore] = useState<number | null>(null);
+  const [examPassed, setExamPassed] = useState<boolean | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -46,7 +51,7 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
     async function fetchEnrollment() {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/admin/enrollments/${params.id}`);
+        const response = await fetch(`/api/enrollments/${params.id}`);
         if (!response.ok) {
           if (response.status === 404) {
             throw new Error('Enrollment not found');
@@ -58,6 +63,8 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
         setProgress(data.progress);
         setCompleted(data.completed);
         setNotes(data.enrollment_notes || '');
+        setExamScore(data.exam_score || null);
+        setExamPassed(data.exam_passed || null);
       } catch (error) {
         console.error('Error fetching enrollment:', error);
         setErrorMessage((error as Error).message || 'Failed to load enrollment');
@@ -71,6 +78,16 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
     }
   }, [params.id]);
 
+  useEffect(() => {
+    if (enrollment) {
+      setProgress(enrollment.progress || 0);
+      setCompleted(enrollment.completed || false);
+      setNotes(enrollment.enrollment_notes || '');
+      setExamScore(enrollment.exam_score || null);
+      setExamPassed(enrollment.exam_passed || null);
+    }
+  }, [enrollment]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -78,8 +95,8 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`/api/admin/enrollments/${params.id}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/enrollments/${params.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -87,6 +104,8 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
           progress,
           completed,
           enrollment_notes: notes,
+          exam_score: examScore,
+          exam_passed: examPassed,
         }),
       });
 
@@ -112,7 +131,7 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
     }
 
     try {
-      const response = await fetch(`/api/admin/enrollments/${params.id}`, {
+      const response = await fetch(`/api/enrollments/${params.id}`, {
         method: 'DELETE',
       });
 
@@ -239,6 +258,22 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
                 </span>
               </p>
             </div>
+            <div className="border rounded-md p-3">
+              <p className="text-sm text-gray-500">Exam Score</p>
+              <p>{enrollment.exam_score !== null && enrollment.exam_score !== undefined ? `${enrollment.exam_score}%` : 'Not taken'}</p>
+            </div>
+            <div className="border rounded-md p-3">
+              <p className="text-sm text-gray-500">Exam Status</p>
+              <p>
+                {enrollment.exam_passed === null || enrollment.exam_passed === undefined ? (
+                  'Not taken'
+                ) : enrollment.exam_passed ? (
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Passed</span>
+                ) : (
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Failed</span>
+                )}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -289,6 +324,46 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Exam Score (%)
+            </label>
+            <input
+              type="number"
+              value={examScore === null ? '' : examScore}
+              onChange={(e) => {
+                const value = e.target.value === '' ? null : Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                setExamScore(value);
+                if (value !== null) {
+                  // Automatically update exam passed status based on score
+                  const passThreshold = 70; // Default passing threshold
+                  setExamPassed(value >= passThreshold);
+                }
+              }}
+              min="0"
+              max="100"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Leave blank if exam not taken"
+            />
+          </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="examPassed"
+              checked={examPassed === true}
+              onChange={(e) => setExamPassed(e.target.checked ? true : false)}
+              disabled={examScore === null}
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            <label htmlFor="examPassed" className="ml-2 block text-sm text-gray-900">
+              Exam Passed
+            </label>
+            {examScore === null && (
+              <span className="ml-2 text-xs text-gray-500">
+                (Enter an exam score first)
+              </span>
+            )}
           </div>
           <div className="flex justify-between pt-4">
             <button

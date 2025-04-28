@@ -57,6 +57,8 @@ export interface UserEnrollment {
   enrolled_at: string;
   last_accessed_at: string | null;
   completed_at: string | null;
+  exam_score: number | null;
+  exam_passed: boolean | null;
   created_at: string;
   updated_at: string;
 }
