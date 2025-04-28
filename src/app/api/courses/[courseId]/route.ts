@@ -20,15 +20,32 @@ async function isUrlAccessible(url: string): Promise<boolean> {
   }
 }
 
-async function verifyAuth() {
+async function verifyAuth(request: NextRequest) {
   try {
-    const token = getServerAdminToken();
+    // Log environment for debugging
+    console.log('Current environment:', process.env.NODE_ENV);
     
-    if (!token || !isValidAdminToken(token)) {
-      console.error('Authentication failed: Token missing or invalid');
-      throw new Error('Unauthorized');
+    // Get token from cookies
+    const token = request.cookies.get('admin_token')?.value;
+    console.log('Found token in cookies:', !!token);
+    
+    // Always allow in development mode for testing
+    if (process.env.NODE_ENV !== 'production') {
+      if (token === 'super-secure-admin-token-for-development') {
+        console.log('Development token accepted');
+        return;
+      }
     }
-    console.log('User is admin, allowing access');
+    
+    // Check against ADMIN_TOKEN environment variable
+    const validToken = process.env.ADMIN_TOKEN;
+    if (token === validToken) {
+      console.log('Valid admin token provided');
+      return;
+    }
+    
+    console.error('Invalid or missing admin token');
+    throw new Error('Unauthorized');
   } catch (error) {
     console.error('Authentication error:', error);
     throw new Error('Unauthorized');
@@ -40,7 +57,7 @@ export async function GET(
   context: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    await verifyAuth();
+    await verifyAuth(request);
     // Await the params object before accessing its properties
     const params = await context.params;
     const courseId = params.courseId;
@@ -76,7 +93,7 @@ export async function PUT(
   context: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    await verifyAuth();
+    await verifyAuth(request);
     // Await the params object before accessing its properties
     const params = await context.params;
     const courseId = params.courseId;
@@ -261,7 +278,7 @@ export async function DELETE(
   context: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    await verifyAuth();
+    await verifyAuth(request);
     // Await the params object before accessing its properties
     const params = await context.params;
     const courseId = params.courseId;

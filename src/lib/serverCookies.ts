@@ -9,9 +9,9 @@ import { cookies } from 'next/headers';
  * Get a cookie value by name (server-side)
  * This must be used within a Server Component or Server Action
  */
-export async function getServerCookie(name: string): Promise<string | undefined> {
+export function getServerCookie(name: string): string | undefined {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     return cookieStore.get(name)?.value;
   } catch (error) {
     console.error(`Server: Error getting cookie ${name}:`, error);
@@ -23,7 +23,7 @@ export async function getServerCookie(name: string): Promise<string | undefined>
  * Set a cookie with the given options (server-side)
  * This must be used within a Server Component or Server Action
  */
-export async function setServerCookie(
+export function setServerCookie(
   name: string, 
   value: string, 
   options: {
@@ -33,7 +33,7 @@ export async function setServerCookie(
     maxAge?: number;
     path?: string;
   } = {}
-): Promise<void> {
+): void {
   try {
     // Make sure path is set to root by default
     const finalOptions = {
@@ -41,7 +41,7 @@ export async function setServerCookie(
       path: options.path || '/',
     };
     
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     cookieStore.set(name, value, finalOptions);
   } catch (error) {
     console.error(`Server: Error setting cookie ${name}:`, error);
@@ -52,9 +52,9 @@ export async function setServerCookie(
  * Delete a cookie by name (server-side)
  * This must be used within a Server Component or Server Action
  */
-export async function deleteServerCookie(name: string): Promise<void> {
+export function deleteServerCookie(name: string): void {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     cookieStore.delete(name);
   } catch (error) {
     console.error(`Server: Error deleting cookie ${name}:`, error);
@@ -96,8 +96,8 @@ export function isValidAdminToken(token?: string): boolean {
  * Get the admin token from cookies (server-side)
  * This must be used within a Server Component or Server Action
  */
-export async function getServerAdminToken(): Promise<string | undefined> {
-  return await getServerCookie('admin_token');
+export function getServerAdminToken(): string | undefined {
+  return getServerCookie('admin_token');
 }
 
 /**
