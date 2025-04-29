@@ -205,6 +205,15 @@ export default function AdminUsersPage() {
           Refresh Users
         </Button>
         
+        <Link href="/admin/users/import">
+          <Button className="flex items-center">
+            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 4v16m-8-8h16" />
+            </svg>
+            Import Users
+          </Button>
+        </Link>
+        
         <div className="flex-1 flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
           <Input
             placeholder="Search by name or email"

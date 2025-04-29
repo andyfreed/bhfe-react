@@ -24,7 +24,9 @@ interface UserProfileFormProps {
   userId: string;
   initialData: {
     email: string;
-    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string; // Keep for backward compatibility
     company?: string;
     phone?: string;
     role?: string;
@@ -38,7 +40,8 @@ interface UserProfileFormProps {
 
 interface UserFormData {
   email: string;
-  full_name: string;
+  first_name: string;
+  last_name: string;
   company: string;
   phone: string;
   role: string;
@@ -53,9 +56,22 @@ export default function UserProfileForm({
   onSuccess,
   onCancel
 }: UserProfileFormProps) {
+  // If we have full_name but not first_name/last_name, split it
+  const splitName = (fullName: string = '') => {
+    const parts = fullName.trim().split(' ');
+    const lastName = parts.length > 1 ? parts.pop() || '' : '';
+    const firstName = parts.join(' ');
+    return { firstName, lastName };
+  };
+
+  const { firstName, lastName } = initialData.full_name ? 
+    splitName(initialData.full_name) : 
+    { firstName: initialData.first_name || '', lastName: initialData.last_name || '' };
+
   const [formData, setFormData] = useState<UserFormData>({
     email: initialData.email || '',
-    full_name: initialData.full_name || '',
+    first_name: firstName,
+    last_name: lastName,
     company: initialData.company || '',
     phone: initialData.phone || '',
     role: initialData.role || 'user',
@@ -173,6 +189,8 @@ export default function UserProfileForm({
       // Transform data to match API expectations
       const transformed = {
         email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         company: formData.company,
         phone: formData.phone,
         role: formData.role,
@@ -221,7 +239,8 @@ export default function UserProfileForm({
       onSuccess({
         ...updatedUser,
         // Ensure these fields are included even if API doesn't return them
-        full_name: formData.full_name,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         company: formData.company, 
         phone: formData.phone,
         role: formData.role,
@@ -248,83 +267,93 @@ export default function UserProfileForm({
           </div>
         )}
         
-        {/* Basic Information Section */}
-        <div className="border rounded-md p-4">
-          <h3 className="text-lg font-medium mb-4">Basic Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="full_name">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="full_name"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="company">
-                Company
-              </label>
-              <input
-                type="text"
-                id="company"
-                name="company"
-                value={formData.company}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="phone">
-                Phone
-              </label>
-              <input
-                type="text"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="role">
-                Role
-              </label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            readOnly
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="first_name">
+              First Name
+            </label>
+            <input
+              type="text"
+              id="first_name"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="last_name">
+              Last Name
+            </label>
+            <input
+              type="text"
+              id="last_name"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="company">
+            Company
+          </label>
+          <input
+            type="text"
+            id="company"
+            name="company"
+            value={formData.company}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="phone">
+            Phone
+          </label>
+          <input
+            type="text"
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="role">
+            Role
+          </label>
+          <select
+            id="role"
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
         </div>
         
         {/* Shipping Address Section */}

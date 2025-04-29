@@ -5,7 +5,9 @@ import { cookies } from 'next/headers';
 
 // Define types for the data we're working with
 interface UserProfile {
-  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string; // Keep for backwards compatibility
   company?: string;
   phone?: string;
 }
@@ -17,7 +19,9 @@ interface UserRecord {
   created_at: string;
   updated_at: string;
   profiles?: {
-    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string; // Keep for backwards compatibility
     company?: string;
     phone?: string;
   };
@@ -34,7 +38,9 @@ interface FormattedUser {
   id: string;
   email: string;
   role: string;
-  full_name: string;
+  first_name: string;
+  last_name: string;
+  full_name?: string; // Keep for backwards compatibility
   company: string;
   phone: string;
   created_at: string;
@@ -209,7 +215,7 @@ export async function GET(request: NextRequest) {
     console.log('Fetching user profiles...');
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, role, full_name, company, phone')
+      .select('id, role, first_name, last_name, full_name, company, phone')
       .in('id', userIds);
     
     if (profilesError) {
@@ -272,6 +278,8 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email,
         role: profile.role || user.role || 'user', // Use role from profile or user table
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
         full_name: profile.full_name || '',
         company: profile.company || '',
         phone: profile.phone || '',
@@ -337,7 +345,7 @@ export async function POST(request: NextRequest) {
     
     // Parse request body
     const body = await request.json();
-    const { email, password, full_name, company, phone, role } = body;
+    const { email, password, first_name, last_name, company, phone, role } = body;
     
     console.log('Creating user with email:', email);
     
@@ -349,93 +357,83 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create new user
-    const { data: userData, error: createError } = await supabase.auth.admin.createUser({
+    // First, check if a user with this email already exists
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', email)
+      .single();
+    
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'A user with this email already exists' },
+        { status: 400 }
+      );
+    }
+    
+    // Create the user account via Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true // Auto-confirm email
+      email_confirm: true,
     });
     
-    if (createError) {
-      console.error('Error creating user in auth system:', createError);
+    if (authError) {
+      console.error('Error creating user via auth API:', authError);
       return NextResponse.json(
-        { error: `Failed to create user: ${createError.message}` },
+        { error: `Auth error: ${authError.message}` },
         { status: 500 }
       );
     }
     
-    if (!userData?.user?.id) {
-      console.error('User created but no ID returned');
+    if (!authData.user) {
+      console.error('No user returned from auth API');
       return NextResponse.json(
-        { error: 'Failed to create user - no ID returned' },
+        { error: 'Failed to create user' },
         { status: 500 }
       );
     }
     
-    const userId = userData.user.id;
-    console.log('User created with ID:', userId);
+    const userId = authData.user.id;
     
-    // Also add to users table for backup
-    const { error: userInsertError } = await supabase
-      .from('users')
-      .insert({
-        id: userId,
-        email: email,
-        role: role || 'user',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-      
-    if (userInsertError) {
-      console.warn('Failed to insert into users table:', userInsertError.message);
-    }
-    
-    // Create profile
-    const { error: profileError } = await supabase
+    // Update the user's profile
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .insert({
-        id: userId, // Use the user ID as profile ID
-        full_name,
+      .update({
+        first_name,
+        last_name,
         company,
         phone,
-        role: role || 'user',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+        role: role || 'user'
+      })
+      .eq('id', userId)
+      .select();
     
     if (profileError) {
-      console.error('Error creating user profile:', profileError);
-      // We've already created the user, so return partial success
-      return NextResponse.json(
-        {
-          id: userId,
-          email: email,
-          role: role || 'user',
-          full_name: full_name || '',
-          company: company || '',
-          phone: phone || '',
-          created_at: userData.user.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          warning: 'User created, but profile data could not be saved'
-        },
-        { status: 201 }
-      );
-    }
-    
-    // Return the new user with profile data
-    return NextResponse.json(
-      {
+      console.error('Error updating user profile:', profileError);
+      
+      // If profile update fails, we should still return success since the auth user was created
+      return NextResponse.json({
         id: userId,
         email: email,
         role: role || 'user',
-        full_name: full_name || '',
+        first_name: first_name || '',
+        last_name: last_name || '',
         company: company || '',
         phone: phone || '',
-        created_at: userData.user.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      { status: 201 }
-    );
+        warning: 'User created but profile update failed'
+      });
+    }
+    
+    return NextResponse.json({
+      id: userId,
+      email: email,
+      role: role || 'user',
+      first_name: first_name || '',
+      last_name: last_name || '',
+      company: company || '',
+      phone: phone || '',
+    });
   } catch (error: any) {
     console.error('Server error in POST /api/users:', error);
     return NextResponse.json(
