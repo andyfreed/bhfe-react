@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { use } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -37,9 +37,10 @@ interface CourseParams {
 }
 
 export default function CourseContentPage() {
-  // Get slug from URL params using the useParams hook
+  // Get slug from URL params using the useParams hook and unwrap it properly
   const params = useParams();
-  const courseId = params.slug as string;
+  // Properly unwrap the params object
+  const courseId = Array.isArray(params.slug) ? params.slug[0] : (params.slug as string);
   
   const [course, setCourse] = useState<Course | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -69,7 +70,14 @@ export default function CourseContentPage() {
         const enrollmentCheckUrl = `/api/user/enrollments/check?courseId=${courseId}&email=${encodeURIComponent(user.email)}`;
         console.log('Checking enrollment with URL:', enrollmentCheckUrl);
         
-        const enrollmentCheckResponse = await fetch(enrollmentCheckUrl);
+        const enrollmentCheckResponse = await fetch(enrollmentCheckUrl, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          credentials: 'include'
+        });
+        
         console.log('Enrollment check response status:', enrollmentCheckResponse.status);
         
         let enrollmentCheckData;
@@ -91,16 +99,44 @@ export default function CourseContentPage() {
         
         console.log('User is enrolled in this course, proceeding to fetch content');
 
-        // Fetch course details
-        const courseResponse = await fetch(`/api/courses/${courseId}`);
+        // Fetch course details with auth credentials
+        const courseResponse = await fetch(`/api/courses/${courseId}`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Accept': 'application/json'
+          },
+          credentials: 'include',
+          mode: 'cors'
+        });
+        
+        console.log('Course response status:', courseResponse.status);
+        
         if (!courseResponse.ok) {
-          throw new Error(`Failed to fetch course: ${courseResponse.status}`);
+          console.error('Course fetch error:', courseResponse.status);
+          
+          // Try to get more detailed error info
+          try {
+            const errorData = await courseResponse.json();
+            console.error('Course fetch error details:', errorData);
+            throw new Error(`Failed to fetch course: ${courseResponse.status} - ${errorData.error || 'Unknown error'}`);
+          } catch (parseError) {
+            // If we can't parse the error, just throw with the status code
+            throw new Error(`Failed to fetch course: ${courseResponse.status}`);
+          }
         }
+        
         const courseData = await courseResponse.json();
+        console.log('Course data received:', courseData ? 'Data received' : 'No data', 
+                   'Course ID:', courseData?.id,
+                   'Title:', courseData?.title);
         setCourse(courseData);
 
-        // Fetch course exams
-        const examsResponse = await fetch(`/api/courses/${courseId}/exams`);
+        // Fetch course exams with auth credentials
+        const examsResponse = await fetch(`/api/courses/${courseId}/exams`, {
+          credentials: 'include'
+        });
+        
         if (examsResponse.ok) {
           const examsData = await examsResponse.json();
           setExams(examsData);
@@ -119,9 +155,9 @@ export default function CourseContentPage() {
           course: courseData
         });
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching course data:', error);
-        setError('Failed to load course content. Please try again later.');
+        setError(`Failed to load course content. Please try again later. (${error.message})`);
       } finally {
         setIsLoading(false);
       }

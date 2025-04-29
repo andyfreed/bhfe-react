@@ -299,6 +299,9 @@ export async function PUT(
       .update({ 
         email,
         role,
+        first_name,
+        last_name,
+        name: `${first_name || ''} ${last_name || ''}`.trim() || email.split('@')[0],
         updated_at: new Date().toISOString() 
       })
       .eq('id', userId);
@@ -328,7 +331,8 @@ export async function PUT(
       last_name,
       company, 
       phone, 
-      role 
+      role,
+      name: `${first_name || ''} ${last_name || ''}`.trim() || email.split('@')[0]
     });
   } catch (error: any) {
     console.error('Error in PUT /api/users/[id]:', error);

@@ -1,6 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCourseExams, createExam } from '@/lib/exams';
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
+import { createServerSupabaseClient } from '@/lib/supabase';
+
+// Check if user is enrolled in a course
+async function isUserEnrolled(userId: string, courseId: string): Promise<boolean> {
+  try {
+    if (!userId || !courseId) return false;
+    
+    const supabase = createServerSupabaseClient() as any;
+    
+    // Try using the RPC function first (more reliable)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+      'check_user_enrollment',
+      { user_id_param: userId, course_id_param: courseId }
+    );
+    
+    if (!rpcError && rpcResult) {
+      return rpcResult.is_enrolled === true;
+    }
+    
+    console.log('RPC enrollment check failed, falling back to direct query:', rpcError);
+    
+    // Fall back to direct query if RPC fails
+    const { data, error } = await supabase
+      .from('user_enrollments')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('course_id', courseId)
+      .maybeSingle();
+      
+    if (error) {
+      console.error('Error checking enrollment:', error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (error) {
+    console.error('Error in isUserEnrolled:', error);
+    return false;
+  }
+}
 
 async function verifyAuth() {
   try {
@@ -31,6 +71,46 @@ export async function GET(
         { error: 'Course ID is required' },
         { status: 400 }
       );
+    }
+    
+    // Check if this is a student trying to access exams for their enrolled course
+    const supabase = createServerSupabaseClient() as any;
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // If the user is logged in, check if they're enrolled in this course
+    let isEnrolled = false;
+    if (session && session.user) {
+      console.log(`Checking if user ${session.user.id} is enrolled in course ${courseId} for exams access`);
+      isEnrolled = await isUserEnrolled(session.user.id as string, courseId);
+      if (isEnrolled) {
+        console.log(`User ${session.user.id} is enrolled in course ${courseId}, allowing exams access`);
+      } else {
+        console.log(`User is authenticated but not enrolled in this course for exams`);
+      }
+    }
+    
+    // If the user is not enrolled, verify admin access
+    if (!isEnrolled) {
+      try {
+        await verifyAuth();
+      } catch (error) {
+        // Check if the user is trying to access via the admin panel or directly
+        const referer = req.headers.get('referer') || '';
+        const isAdminAccess = referer.includes('/admin/');
+        
+        if (isAdminAccess) {
+          return NextResponse.json(
+            { error: 'Admin authentication required' },
+            { status: 401 }
+          );
+        } else {
+          // For non-admin access, return 403 with clear message
+          return NextResponse.json(
+            { error: 'You are not enrolled in this course' },
+            { status: 403 }
+          );
+        }
+      }
     }
     
     const exams = await getCourseExams(courseId);

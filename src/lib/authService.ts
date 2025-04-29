@@ -310,8 +310,9 @@ export async function getSession(): Promise<AuthResult> {
  */
 export async function getUser(): Promise<AuthResult> {
   try {
+    console.log('Getting current user from Supabase Auth...');
     // Use mock authentication in development mode if enabled
-    if (useMockAuth) {
+    if (useMockAuth && isDevelopment) {
       console.log('🔧 MOCK AUTH: Returning mock user');
       return {
         data: MOCK_USER,
@@ -319,17 +320,22 @@ export async function getUser(): Promise<AuthResult> {
       };
     }
     
-    console.log('Retrieving current user...');
-    // First check if we have a session
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    // Use real Supabase authentication
+    const { data: { user }, error } = await supabase.auth.getUser();
     
-    if (sessionError) {
-      console.error('Error fetching session:', sessionError);
-      throw sessionError;
+    if (error) {
+      console.error('Error getting user:', error);
+      return {
+        data: null,
+        error: {
+          message: error.message,
+          status: error.status || 401,
+        },
+      };
     }
     
-    if (!sessionData.session) {
-      console.log('No active session found');
+    if (!user) {
+      console.warn('No user found in current session');
       return {
         data: null,
         error: {
@@ -339,40 +345,40 @@ export async function getUser(): Promise<AuthResult> {
       };
     }
     
-    // Get user data from the session
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    console.log(`User authenticated: ${user.id}, email: ${user.email}`);
     
-    if (userError) {
-      console.error('Error fetching user data:', userError);
-      throw userError;
-    }
-    
-    // If we have a user, check if they're an admin in the database
-    const user = userData.user;
-    if (user) {
-      const { data: dbUser, error: dbError } = await supabase
-        .from('users')
-        .select('role')
+    // Check if the user has a profile with role information
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, role, full_name, first_name, last_name')
         .eq('id', user.id)
         .single();
       
-      if (!dbError && dbUser) {
-        // Add role from database to user object
-        user.role = dbUser.role;
+      if (profileError) {
+        console.warn('Error fetching user profile:', profileError);
+      } else if (profile) {
+        console.log(`User profile found - Role: ${profile.role || 'not set'}`);
+        // Attach profile data to user for convenience
+        (user as any).profile = profile;
+      } else {
+        console.warn(`User ${user.id} has no profile record`);
       }
+    } catch (profileErr) {
+      console.error('Unexpected error fetching profile:', profileErr);
     }
     
     return {
-      data: userData.user,
+      data: user,
       error: null,
     };
   } catch (error: any) {
-    console.error('Error getting user:', error);
+    console.error('Unexpected error in getUser:', error);
     return {
       data: null,
       error: {
         message: error.message || 'Failed to get user',
-        status: error.status || 500,
+        status: 500,
       },
     };
   }

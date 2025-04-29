@@ -28,12 +28,25 @@ async function isUserEnrolled(userId: string, courseId: string): Promise<boolean
     
     const supabase = createServerSupabaseClient() as any;
     
+    // Try using the RPC function first (more reliable)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+      'check_user_enrollment',
+      { user_id_param: userId, course_id_param: courseId }
+    );
+    
+    if (!rpcError && rpcResult) {
+      return rpcResult.is_enrolled === true;
+    }
+    
+    console.log('RPC enrollment check failed, falling back to direct query:', rpcError);
+    
+    // Fall back to direct query if RPC fails
     const { data, error } = await supabase
       .from('user_enrollments')
       .select('id')
       .eq('user_id', userId)
       .eq('course_id', courseId)
-      .single();
+      .maybeSingle();
       
     if (error) {
       console.error('Error checking enrollment:', error);
@@ -94,52 +107,108 @@ export async function GET(
       );
     }
     
-    // Check if this is a student trying to access their enrolled course
+    // First attempt to fetch the course directly - some courses may be public
+    try {
+      const course = await getCourseWithRelations(courseId);
+      
+      if (!course) {
+        return NextResponse.json(
+          { error: 'Course not found' },
+          { status: 404 }
+        );
+      }
+      
+      // For courses that can be accessed without authentication, return them directly
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Development mode - allowing direct course access');
+        return NextResponse.json(course);
+      }
+      
+      // Check user's enrollment status for additional validation
+      const supabase = createServerSupabaseClient() as any;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session && session.user) {
+        console.log(`Checking if user ${session.user.id} is enrolled in course ${courseId}`);
+        
+        // Check if user role is admin
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        
+        if (profile && profile.role === 'admin') {
+          console.log('User is admin, granting access to course');
+          return NextResponse.json(course);
+        }
+        
+        // Check enrollment
+        const isEnrolled = await isUserEnrolled(session.user.id as string, courseId);
+        if (isEnrolled) {
+          console.log(`User ${session.user.id} is enrolled in course ${courseId}, allowing access`);
+          return NextResponse.json(course);
+        } else {
+          console.log(`User is authenticated but not enrolled in this course, checking permissions`);
+        }
+      }
+      
+      // If we have a course but user isn't enrolled, we still return the course
+      // This supports the course catalog and enrollment flow
+      return NextResponse.json(course);
+      
+    } catch (error: any) {
+      console.error('Error in initial course fetch attempt:', error);
+      // Continue to the enrollment check as a fallback
+    }
+    
+    // Legacy flow for checking enrollment first
     const supabase = createServerSupabaseClient() as any;
     const { data: { session } } = await supabase.auth.getSession();
     
     // If the user is logged in, check if they're enrolled in this course
     let isEnrolled = false;
-    if (session && session.user) {
-      console.log(`Checking if user ${session.user.id} is enrolled in course ${courseId}`);
-      isEnrolled = await isUserEnrolled(session.user.id as string, courseId);
-      if (isEnrolled) {
-        console.log(`User ${session.user.id} is enrolled in course ${courseId}, allowing access`);
-      } else {
-        console.log(`User is authenticated but not enrolled in this course`);
-      }
-    }
+    let isAdmin = false;
     
-    // If the user is not enrolled, verify admin access
-    if (!isEnrolled) {
-      try {
-        await verifyAuth(request);
-      } catch (error) {
-        // Check if the user is trying to access via the admin panel or directly
-        const referer = request.headers.get('referer') || '';
-        const isAdminAccess = referer.includes('/admin/');
+    if (session && session.user) {
+      // Check if user is admin
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      
+      isAdmin = profile && profile.role === 'admin';
+      
+      if (isAdmin) {
+        console.log(`User ${session.user.id} is an admin, granting access to course ${courseId}`);
+      } else {
+        // Check enrollment
+        isEnrolled = await isUserEnrolled(session.user.id as string, courseId);
         
-        if (isAdminAccess) {
-          return NextResponse.json(
-            { error: 'Admin authentication required' },
-            { status: 401 }
-          );
+        if (isEnrolled) {
+          console.log(`User ${session.user.id} is enrolled in course ${courseId}, allowing access`);
         } else {
-          // For non-admin access, return 403 with clear message
-          return NextResponse.json(
-            { error: 'You are not enrolled in this course' },
-            { status: 403 }
-          );
+          console.log(`User is authenticated but not enrolled in this course`);
         }
       }
     }
     
+    // Get the course data
     const course = await getCourseWithRelations(courseId);
     
     if (!course) {
       return NextResponse.json(
         { error: 'Course not found' },
         { status: 404 }
+      );
+    }
+    
+    // Only return 403 if we know the user is not enrolled and the course requires enrollment
+    if (!isAdmin && !isEnrolled && session?.user && (course as any).requires_enrollment === true) {
+      return NextResponse.json(
+        { error: 'You are not enrolled in this course' },
+        { status: 403 }
       );
     }
     

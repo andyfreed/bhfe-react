@@ -1,7 +1,8 @@
 'use client';
 
+import React, { use } from 'react';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface User {
@@ -33,9 +34,12 @@ interface Enrollment {
   course: Course;
 }
 
-export default function EnrollmentDetailPage({ params }: { params: { id: string } }) {
+export default function EnrollmentDetailPage() {
   const router = useRouter();
-  const { id } = params;
+  const params = useParams();
+  // Safe way to access the ID
+  const enrollmentId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+  
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +55,7 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
     async function fetchEnrollment() {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/enrollments/${params.id}`);
+        const response = await fetch(`/api/enrollments/${enrollmentId}`);
         if (!response.ok) {
           if (response.status === 404) {
             throw new Error('Enrollment not found');
@@ -73,10 +77,10 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
       }
     }
 
-    if (params.id) {
+    if (enrollmentId) {
       fetchEnrollment();
     }
-  }, [params.id]);
+  }, [enrollmentId]);
 
   useEffect(() => {
     if (enrollment) {
@@ -95,7 +99,7 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`/api/enrollments/${params.id}`, {
+      const response = await fetch(`/api/enrollments/${enrollmentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +135,7 @@ export default function EnrollmentDetailPage({ params }: { params: { id: string 
     }
 
     try {
-      const response = await fetch(`/api/enrollments/${params.id}`, {
+      const response = await fetch(`/api/enrollments/${enrollmentId}`, {
         method: 'DELETE',
       });
 

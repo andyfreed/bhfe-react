@@ -31,8 +31,12 @@ interface User {
   created_at: string;
   last_sign_in_at?: string;
   role?: string;
+  first_name?: string;
+  last_name?: string;
   profile?: {
     full_name?: string;
+    first_name?: string;
+    last_name?: string;
     company?: string;
     phone?: string;
     shipping_address?: Address;
@@ -196,8 +200,12 @@ export default function AdminUserDetailPage() {
           created_at: userData.created_at,
           last_sign_in_at: userData.last_sign_in_at,
           role: userData.role || 'user',
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
           profile: {
             full_name: userData.full_name || '',
+            first_name: userData.first_name || '',
+            last_name: userData.last_name || '',
             company: userData.company || '',
             phone: userData.phone || '',
             shipping_address: shippingAddress,
@@ -577,12 +585,18 @@ export default function AdminUserDetailPage() {
       setUser(prevUser => {
         if (!prevUser) return null;
         
+        console.log('Updating user with data:', updatedData);
         return {
           ...prevUser,
           email: updatedData.email || prevUser.email,
           role: updatedData.role || prevUser.role,
+          first_name: updatedData.first_name || '',
+          last_name: updatedData.last_name || '',
           profile: {
-            full_name: updatedData.full_name || prevUser.profile?.full_name || '',
+            ...prevUser.profile,
+            full_name: `${updatedData.first_name || ''} ${updatedData.last_name || ''}`.trim() || prevUser.profile?.full_name || '',
+            first_name: updatedData.first_name || '',
+            last_name: updatedData.last_name || '',
             company: updatedData.company || prevUser.profile?.company || '',
             phone: updatedData.phone || prevUser.profile?.phone || '',
             shipping_address: transformedShippingAddress || prevUser.profile?.shipping_address,
@@ -631,8 +645,12 @@ export default function AdminUserDetailPage() {
               created_at: userData.created_at,
               last_sign_in_at: userData.last_sign_in_at,
               role: userData.role || 'user',
+              first_name: userData.first_name || '',
+              last_name: userData.last_name || '',
               profile: {
-                full_name: userData.full_name || '',
+                full_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.full_name || '',
+                first_name: userData.first_name || '',
+                last_name: userData.last_name || '',
                 company: userData.company || '',
                 phone: userData.phone || '',
                 shipping_address: shippingAddress,
@@ -779,6 +797,8 @@ export default function AdminUserDetailPage() {
                       created_at: userData.created_at,
                       last_sign_in_at: userData.last_sign_in_at,
                       role: userData.role || 'user',
+                      first_name: userData.first_name || '',
+                      last_name: userData.last_name || '',
                       profile: {
                         full_name: userData.full_name || '',
                         company: userData.company || '',
@@ -1092,6 +1112,8 @@ export default function AdminUserDetailPage() {
               userId={userId as string}
               initialData={{
                 email: user.email,
+                first_name: user.first_name || user.profile?.first_name || '',
+                last_name: user.last_name || user.profile?.last_name || '',
                 full_name: user.profile?.full_name,
                 company: user.profile?.company,
                 phone: user.profile?.phone,

@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Create a new supabase server client
+    // Create a new supabase server client with service role to bypass RLS
     const supabase = createServerSupabaseClient() as any;
     
     // Get the session using the client
@@ -43,17 +43,31 @@ export async function GET(req: Request) {
     if (!userId && userEmail) {
       // Look up user by email if provided
       console.log(`No user ID found, looking up user by email: ${userEmail}`);
-      const { data: userData, error: userError } = await supabase
-        .from('users')
+      
+      // First try auth.users which is the source of truth
+      const { data: authUserData, error: authUserError } = await supabase
+        .from('auth.users')
         .select('id')
         .eq('email', userEmail)
-        .single();
-      
-      if (userError) {
-        console.error('Error finding user by email:', userError);
-      } else if (userData) {
-        userId = userData.id;
-        console.log(`Found user ${userId} by email ${userEmail}`);
+        .maybeSingle();
+        
+      if (!authUserError && authUserData) {
+        userId = authUserData.id;
+        console.log(`Found user ${userId} in auth.users by email ${userEmail}`);
+      } else {
+        // Fall back to public.users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', userEmail)
+          .maybeSingle();
+        
+        if (userError) {
+          console.error('Error finding user by email:', userError);
+        } else if (userData) {
+          userId = userData.id;
+          console.log(`Found user ${userId} in public.users by email ${userEmail}`);
+        }
       }
     }
     
@@ -66,35 +80,66 @@ export async function GET(req: Request) {
     
     console.log(`Checking if user ${userId} is enrolled in course ${courseId}`);
     
-    // Check enrollment in the database
-    const { data, error } = await supabase
-      .from('user_enrollments')
-      .select('id, progress, completed')
-      .eq('user_id', userId)
-      .eq('course_id', courseId)
-      .single();
+    // Use RPC to check enrollment, bypassing RLS
+    const { data: enrollmentData, error: enrollmentError } = await supabase.rpc(
+      'check_user_enrollment',
+      { user_id_param: userId, course_id_param: courseId }
+    );
     
-    if (error) {
-      console.error('Error checking enrollment:', error);
-      // 404 means no enrollment found, which is not an error for this endpoint
-      if (error.code === 'PGRST116') {
+    // If RPC call fails, fall back to direct query
+    if (enrollmentError) {
+      console.log('RPC call failed, falling back to direct query:', enrollmentError);
+      
+      // Check enrollment in the database
+      const { data, error } = await supabase
+        .from('user_enrollments')
+        .select('id, progress, completed')
+        .eq('user_id', userId)
+        .eq('course_id', courseId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error checking enrollment:', error);
+        
+        if (error.code === 'PGRST116') {
+          return NextResponse.json({ 
+            isEnrolled: false,
+            message: 'User is not enrolled in this course'
+          });
+        }
+        
+        return NextResponse.json({ 
+          isEnrolled: false, 
+          error: `Database error: ${error.message}` 
+        }, { status: 500 });
+      }
+      
+      if (!data) {
         return NextResponse.json({ 
           isEnrolled: false,
           message: 'User is not enrolled in this course'
         });
       }
       
-      return NextResponse.json({ 
-        isEnrolled: false, 
-        error: `Database error: ${error.message}` 
-      }, { status: 500 });
+      // User is enrolled
+      return NextResponse.json({
+        isEnrolled: true,
+        enrollment: data
+      });
     }
     
-    // User is enrolled
-    return NextResponse.json({
-      isEnrolled: true,
-      enrollment: data
-    });
+    // Process RPC response
+    if (enrollmentData && enrollmentData.is_enrolled) {
+      return NextResponse.json({
+        isEnrolled: true,
+        enrollment: enrollmentData.enrollment_data
+      });
+    } else {
+      return NextResponse.json({ 
+        isEnrolled: false,
+        message: 'User is not enrolled in this course'
+      });
+    }
     
   } catch (error: any) {
     console.error('Error in enrollment check:', error);
