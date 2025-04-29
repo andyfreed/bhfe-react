@@ -95,7 +95,7 @@ export async function GET(
     console.log('Fetching profile data for user ID:', userId);
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select(`role, full_name, company, phone,
+      .select(`role, company, phone,
                first_name, last_name,
                billing_street, billing_city, billing_state, billing_zip, billing_country,
                shipping_street, shipping_city, shipping_state, shipping_zip, shipping_country`)
@@ -248,36 +248,32 @@ export async function PUT(
       // Profile exists, update it
       console.log('Updating existing profile:', existingProfile.id);
       
-      const updateData = { 
-        first_name,
-        last_name,
-        company,
-        phone,
-        role,
-        billing_street: billing_address?.street,
-        billing_city: billing_address?.city,
-        billing_state: billing_address?.state,
-        billing_zip: billing_address?.zip,
-        billing_country: billing_address?.country,
-        shipping_street: shipping_address?.street,
-        shipping_city: shipping_address?.city,
-        shipping_state: shipping_address?.state,
-        shipping_zip: shipping_address?.zip,
-        shipping_country: shipping_address?.country,
-        updated_at: new Date().toISOString() 
-      };
-      
-      const { data: updatedProfile, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('profiles')
-        .update(updateData)
-        .eq('id', userId)
-        .select();
+        .update({
+          first_name,
+          last_name,
+          company,
+          phone,
+          role,
+          billing_street: billing_address?.street,
+          billing_city: billing_address?.city,
+          billing_state: billing_address?.state,
+          billing_zip: billing_address?.zip,
+          billing_country: billing_address?.country,
+          shipping_street: shipping_address?.street,
+          shipping_city: shipping_address?.city,
+          shipping_state: shipping_address?.state,
+          shipping_zip: shipping_address?.zip,
+          shipping_country: shipping_address?.country,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
         
-      console.log('Profile update result:', { 
-        success: !!updatedProfile, 
-        error: updateError?.message,
-        data: updatedProfile
-      });
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+        return NextResponse.json({ error: `Failed to update profile: ${updateError.message}` }, { status: 500 });
+      }
     }
     
     // Update email in auth system if changed and user exists in auth

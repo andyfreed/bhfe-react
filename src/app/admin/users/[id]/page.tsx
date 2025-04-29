@@ -31,8 +31,9 @@ interface User {
   created_at: string;
   last_sign_in_at?: string;
   role?: string;
+  first_name?: string;
+  last_name?: string;
   profile?: {
-    full_name?: string;
     company?: string;
     phone?: string;
     shipping_address?: Address;
@@ -196,8 +197,9 @@ export default function AdminUserDetailPage() {
           created_at: userData.created_at,
           last_sign_in_at: userData.last_sign_in_at,
           role: userData.role || 'user',
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
           profile: {
-            full_name: userData.full_name || '',
             company: userData.company || '',
             phone: userData.phone || '',
             shipping_address: shippingAddress,
@@ -468,7 +470,8 @@ export default function AdminUserDetailPage() {
         },
         body: JSON.stringify({
           email: user?.email,
-          full_name: user?.profile?.full_name,
+          first_name: user?.first_name,
+          last_name: user?.last_name,
           company: user?.profile?.company,
           phone: user?.profile?.phone,
           role: newRole
@@ -548,117 +551,34 @@ export default function AdminUserDetailPage() {
 
   // Function to handle profile update success
   const handleProfileUpdateSuccess = (updatedData: any) => {
-    console.log('Profile updated successfully, received data:', updatedData);
+    setIsEditing(false);
+    setSuccessMessage('Profile updated successfully');
     
-    try {
-      // Transform address and license data if needed
-      const transformedShippingAddress = transformApiAddress(updatedData.shipping_address) ||
-        transformApiAddress({
-          street: updatedData.shipping_address?.address1,
-          city: updatedData.shipping_address?.city,
-          state: updatedData.shipping_address?.state,
-          zip: updatedData.shipping_address?.zip,
-          country: updatedData.shipping_address?.country
-        });
-
-      const transformedBillingAddress = transformApiAddress(updatedData.billing_address) ||
-        transformApiAddress({
-          street: updatedData.billing_address?.address1,
-          city: updatedData.billing_address?.city,
-          state: updatedData.billing_address?.state,
-          zip: updatedData.billing_address?.zip,
-          country: updatedData.billing_address?.country
-        });
-
-      // Transform licenses if present
-      const transformedLicenses = transformApiLicenses(updatedData.licenses) || [];
+    // Update the user state with the new data
+    setUser(prevUser => {
+      if (!prevUser) return null;
       
-      // Update user state with received data, ensuring we correctly map fields
-      setUser(prevUser => {
-        if (!prevUser) return null;
-        
-        return {
-          ...prevUser,
-          email: updatedData.email || prevUser.email,
-          role: updatedData.role || prevUser.role,
-          profile: {
-            full_name: updatedData.full_name || prevUser.profile?.full_name || '',
-            company: updatedData.company || prevUser.profile?.company || '',
-            phone: updatedData.phone || prevUser.profile?.phone || '',
-            shipping_address: transformedShippingAddress || prevUser.profile?.shipping_address,
-            billing_address: transformedBillingAddress || prevUser.profile?.billing_address,
-            same_as_shipping: updatedData.same_as_shipping !== undefined ? updatedData.same_as_shipping : prevUser.profile?.same_as_shipping,
-            licenses: transformedLicenses || prevUser.profile?.licenses || []
-          }
-        };
-      });
-      
-      // Clear both editing states to prevent dialogs from showing
-      setIsEditing(false);
-      setIsManageDialogOpen(false);
-      setSuccessMessage('User profile updated successfully!');
-      
-      // Schedule a delayed refetch to get the latest data from the server
-      setTimeout(() => {
-        const abortController = new AbortController();
-        
-        console.log('Refreshing user data from server...');
-        fetch(`/api/users/${userId}`, {
-          signal: abortController.signal,
-          // Add cache busting to prevent stale data
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        })
-        .then(response => {
-          if (response.ok) return response.json();
-          throw new Error('Failed to refresh user data');
-        })
-        .then(userData => {
-          try {
-            console.log('Successfully refreshed user data:', userData);
-            
-            // Transform API address format to component format if needed
-            const shippingAddress = transformApiAddress(userData.shipping_address);
-            const billingAddress = transformApiAddress(userData.billing_address);
-            const licenses = transformApiLicenses(userData.licenses);
-            
-            // Update with the refreshed data from the server
-            setUser({
-              id: userData.id,
-              email: userData.email,
-              created_at: userData.created_at,
-              last_sign_in_at: userData.last_sign_in_at,
-              role: userData.role || 'user',
-              profile: {
-                full_name: userData.full_name || '',
-                company: userData.company || '',
-                phone: userData.phone || '',
-                shipping_address: shippingAddress,
-                billing_address: billingAddress,
-                same_as_shipping: userData.same_as_shipping,
-                licenses: licenses
-              }
-            });
-          } catch (transformError) {
-            console.error('Error transforming user data:', 
-              transformError instanceof Error ? transformError.message : String(transformError));
-          }
-        })
-        .catch(err => {
-          if (err.name !== 'AbortError') {
-            console.error('Error refreshing user data:', 
-              err instanceof Error ? err.message : String(err));
-          }
-        });
-        
-        return () => abortController.abort();
-      }, 1000);
-    } catch (error) {
-      console.error('Error in profile update success handler:', 
-        error instanceof Error ? error.message : String(error));
-    }
+      return {
+        ...prevUser,
+        email: updatedData.email,
+        role: updatedData.role,
+        first_name: updatedData.first_name,
+        last_name: updatedData.last_name,
+        profile: {
+          ...prevUser.profile,
+          company: updatedData.company,
+          phone: updatedData.phone,
+          shipping_address: transformApiAddress(updatedData.shipping_address),
+          billing_address: transformApiAddress(updatedData.billing_address),
+          licenses: transformApiLicenses(updatedData.licenses)
+        }
+      };
+    });
+    
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
   };
 
   // Function to start editing an enrollment
@@ -779,8 +699,9 @@ export default function AdminUserDetailPage() {
                       created_at: userData.created_at,
                       last_sign_in_at: userData.last_sign_in_at,
                       role: userData.role || 'user',
+                      first_name: userData.first_name || '',
+                      last_name: userData.last_name || '',
                       profile: {
-                        full_name: userData.full_name || '',
                         company: userData.company || '',
                         phone: userData.phone || '',
                         shipping_address: userData.shipping_address || { address1: '', address2: '', city: '', state: '', zip: '', country: '' },
@@ -855,7 +776,7 @@ export default function AdminUserDetailPage() {
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
               <div className="p-6 border-b flex justify-between items-center">
                 <div>
-                  <h2 className="text-xl font-semibold mb-1">{user.email}</h2>
+                  <h2 className="text-xl font-semibold mb-1">{user.first_name} {user.last_name}</h2>
                   <p className="text-gray-500 text-sm">User ID: {user.id}</p>
                 </div>
               </div>
@@ -863,8 +784,11 @@ export default function AdminUserDetailPage() {
                 <h3 className="text-lg font-medium mb-2">Account Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
                   <div><span className="font-medium">Email:</span> {user.email}</div>
-                  {user.profile?.full_name && (
-                    <div><span className="font-medium">Name:</span> {user.profile.full_name}</div>
+                  {user.first_name && (
+                    <div><span className="font-medium">First Name:</span> {user.first_name}</div>
+                  )}
+                  {user.last_name && (
+                    <div><span className="font-medium">Last Name:</span> {user.last_name}</div>
                   )}
                   {user.profile?.company && (
                     <div><span className="font-medium">Company:</span> {user.profile.company}</div>
@@ -1092,7 +1016,8 @@ export default function AdminUserDetailPage() {
               userId={userId as string}
               initialData={{
                 email: user.email,
-                full_name: user.profile?.full_name,
+                first_name: user.first_name,
+                last_name: user.last_name,
                 company: user.profile?.company,
                 phone: user.profile?.phone,
                 role: user.role,
