@@ -13,8 +13,8 @@ export async function GET(
   { params }: { params: { examId: string } }
 ) {
   try {
-    // Get the exam ID from params
-    const { examId } = params;
+    // Await params in Next.js 15
+    const { examId } = await params;
     
     // Create Supabase client
     const supabase = createServerSupabaseClientWithCookies();
@@ -34,9 +34,9 @@ export async function GET(
     
     console.log(`Getting attempts for exam ${examId} as user ${userId}`);
     
-    // Get all attempts for this exam for this user
-    const { data, error } = await supabase
-      .from('exam_attempts')
+    // Get existing attempts for this exam
+    const { data: attempts, error } = await supabase
+      .from('user_exam_attempts')
       .select('*')
       .eq('exam_id', examId)
       .eq('user_id', userId)
@@ -47,7 +47,7 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch attempts' }, { status: 500 });
     }
     
-    return NextResponse.json(data || []);
+    return NextResponse.json(attempts || []);
   } catch (error) {
     console.error('Error in GET /api/exams/[examId]/attempts:', error);
     return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
@@ -63,8 +63,8 @@ export async function POST(
   { params }: { params: { examId: string } }
 ) {
   try {
-    // Get the exam ID from params
-    const { examId } = params;
+    // Await params in Next.js 15
+    const { examId } = await params;
     
     // Create Supabase client
     const supabase = createServerSupabaseClientWithCookies();
@@ -84,25 +84,25 @@ export async function POST(
     
     console.log(`Creating attempt for exam ${examId} as user ${userId}`);
     
-    // Create new attempt record
-    const { data, error } = await supabase
-      .from('exam_attempts')
-      .insert([{ 
+    // Create new attempt
+    const { data: newAttempt, error: createError } = await supabase
+      .from('user_exam_attempts')
+      .insert({
         exam_id: examId,
         user_id: userId,
-        status: 'in_progress',
         score: null,
-        completed_at: null
-      }])
+        completed: false,
+        passed: null
+      })
       .select()
       .single();
     
-    if (error) {
-      console.error('Error creating attempt:', error);
+    if (createError) {
+      console.error('Error creating attempt:', createError);
       return NextResponse.json({ error: 'Failed to create attempt' }, { status: 500 });
     }
     
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(newAttempt, { status: 201 });
   } catch (error) {
     console.error('Error in POST /api/exams/[examId]/attempts:', error);
     return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });

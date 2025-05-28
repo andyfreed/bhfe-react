@@ -14,15 +14,15 @@ export async function GET(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    // Get the attempt ID from params
-    const { attemptId } = params;
+    // Await params in Next.js 15
+    const { attemptId } = await params;
     
     // Create Supabase client
     const supabase = createServerSupabaseClientWithCookies();
     
     // Get the attempt
     const { data: attempt, error: attemptError } = await supabase
-      .from('exam_attempts')
+      .from('user_exam_attempts')
       .select('*')
       .eq('id', attemptId)
       .single();
@@ -66,8 +66,8 @@ export async function POST(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    // Get the attempt ID from params
-    const { attemptId } = params;
+    // Await params in Next.js 15
+    const { attemptId } = await params;
     
     // Parse the request body
     const body = await request.json();
@@ -78,7 +78,7 @@ export async function POST(
     
     // First, get the attempt to verify ownership
     const { data: attemptData, error: attemptError } = await supabase
-      .from('exam_attempts')
+      .from('user_exam_attempts')
       .select('*')
       .eq('id', attemptId)
       .single();
@@ -123,7 +123,7 @@ export async function POST(
     }
     
     const { data, error } = await supabase
-      .from('exam_attempts')
+      .from('user_exam_attempts')
       .update(updateData)
       .eq('id', attemptId)
       .select()
@@ -151,15 +151,15 @@ export async function PATCH(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    // Get the attempt ID from params
-    const { attemptId } = params;
+    // Await params in Next.js 15
+    const { attemptId } = await params;
     
     // Create Supabase client
     const supabase = createServerSupabaseClientWithCookies();
     
     // Get the attempt
     const { data: attempt, error: attemptError } = await supabase
-      .from('exam_attempts')
+      .from('user_exam_attempts')
       .select('*')
       .eq('id', attemptId)
       .single();
@@ -189,7 +189,7 @@ export async function PATCH(
     
     // Update the attempt
     const { data, error } = await supabase
-      .from('exam_attempts')
+      .from('user_exam_attempts')
       .update(updateData)
       .eq('id', attemptId)
       .select()

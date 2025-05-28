@@ -105,7 +105,11 @@ export function getServerAdminToken(): string | undefined {
  * This must be used within a Server Component or Server Action
  */
 export function setServerAdminToken(): void {
-  setServerCookie('admin_token', 'temporary-token', {
+  const token = process.env.NODE_ENV === 'development' 
+    ? 'super-secure-admin-token-for-development'
+    : process.env.ADMIN_TOKEN || 'temporary-token';
+    
+  setServerCookie('admin_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

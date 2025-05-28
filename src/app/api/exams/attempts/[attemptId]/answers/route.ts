@@ -14,15 +14,15 @@ export async function GET(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    // Get the attempt ID from params
-    const { attemptId } = params;
+    // Await params in Next.js 15
+    const { attemptId } = await params;
     
     // Create Supabase client
     const supabase = createServerSupabaseClientWithCookies();
     
     // First, get the attempt to verify it exists and check ownership
     const { data: attemptData, error: attemptError } = await supabase
-      .from('exam_attempts')
+      .from('user_exam_attempts')
       .select('*')
       .eq('id', attemptId)
       .single();
@@ -87,8 +87,8 @@ export async function POST(
   { params }: { params: { attemptId: string } }
 ) {
   try {
-    // Get the attempt ID from params
-    const { attemptId } = params;
+    // Await params in Next.js 15
+    const { attemptId } = await params;
     
     // Parse the request body
     const body = await request.json();
@@ -106,7 +106,7 @@ export async function POST(
     
     // First, get the attempt to verify ownership
     const { data: attemptData, error: attemptError } = await supabase
-      .from('exam_attempts')
+      .from('user_exam_attempts')
       .select('*')
       .eq('id', attemptId)
       .single();
@@ -153,10 +153,10 @@ export async function POST(
       );
     }
     
-    // Check if the selected options match the correct answer
-    // This is a simple example - in a real app, you'd have more complex logic
-    const correctAnswer = questionData.correct_answer;
-    const isCorrect = JSON.stringify(selectedOptions.sort()) === JSON.stringify(correctAnswer.sort());
+    // Check if the answer is correct
+    // The correct answer is stored in the correct_option field (a, b, c, or d)
+    const correctOption = questionData.correct_option;
+    const isCorrect = selectedOptions.includes(correctOption);
     
     // Save the answer
     const { data, error } = await supabase

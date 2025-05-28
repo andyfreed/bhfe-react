@@ -14,9 +14,13 @@ interface Props {
 }
 
 export default async function CourseExamPage({ params, searchParams }: Props) {
+  // Await params and searchParams in Next.js 15
+  const awaitedParams = await params;
+  const awaitedSearchParams = await searchParams;
+  
   // Get the exam ID from query params
-  const examId = searchParams?.examId;
-  const slug = params?.slug;
+  const examId = awaitedSearchParams?.examId;
+  const slug = awaitedParams?.slug;
   
   if (!examId) {
     notFound();
