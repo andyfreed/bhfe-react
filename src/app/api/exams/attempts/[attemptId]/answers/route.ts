@@ -57,7 +57,7 @@ export async function GET(
     
     // Get all answers for this attempt
     const { data, error } = await supabase
-      .from('exam_answers')
+      .from('user_exam_answers')
       .select('*')
       .eq('attempt_id', attemptId);
     
@@ -160,7 +160,7 @@ export async function POST(
     
     // Save the answer
     const { data, error } = await supabase
-      .from('exam_answers')
+      .from('user_exam_answers')
       .insert([
         {
           attempt_id: attemptId,
@@ -177,7 +177,7 @@ export async function POST(
       if (error.code === '23505') { // PostgreSQL unique violation code
         // Update the existing answer
         const { data: updatedData, error: updateError } = await supabase
-          .from('exam_answers')
+          .from('user_exam_answers')
           .update({
             selected_options: selectedOptions,
             is_correct: isCorrect

@@ -5,13 +5,21 @@
 
 import { cookies } from 'next/headers';
 
+interface CookieOptions {
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: 'strict' | 'lax' | 'none';
+  maxAge?: number;
+  path?: string;
+}
+
 /**
- * Get a cookie value by name (server-side)
+ * Get a cookie value from the server
  * This must be used within a Server Component or Server Action
  */
-export function getServerCookie(name: string): string | undefined {
+export async function getServerCookie(name: string): Promise<string | undefined> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     return cookieStore.get(name)?.value;
   } catch (error) {
     console.error(`Server: Error getting cookie ${name}:`, error);
@@ -20,41 +28,30 @@ export function getServerCookie(name: string): string | undefined {
 }
 
 /**
- * Set a cookie with the given options (server-side)
+ * Set a cookie on the server
  * This must be used within a Server Component or Server Action
  */
-export function setServerCookie(
-  name: string, 
-  value: string, 
-  options: {
-    httpOnly?: boolean;
-    secure?: boolean;
-    sameSite?: 'strict' | 'lax' | 'none';
-    maxAge?: number;
-    path?: string;
-  } = {}
-): void {
+export async function setServerCookie(name: string, value: string, options?: CookieOptions): Promise<void> {
   try {
-    // Make sure path is set to root by default
-    const finalOptions = {
-      ...options,
-      path: options.path || '/',
-    };
-    
-    const cookieStore = cookies();
-    cookieStore.set(name, value, finalOptions);
+    const cookieStore = await cookies();
+    cookieStore.set(name, value, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      ...options
+    });
   } catch (error) {
     console.error(`Server: Error setting cookie ${name}:`, error);
   }
 }
 
 /**
- * Delete a cookie by name (server-side)
+ * Delete a cookie on the server
  * This must be used within a Server Component or Server Action
  */
-export function deleteServerCookie(name: string): void {
+export async function deleteServerCookie(name: string): Promise<void> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete(name);
   } catch (error) {
     console.error(`Server: Error deleting cookie ${name}:`, error);
@@ -96,7 +93,7 @@ export function isValidAdminToken(token?: string): boolean {
  * Get the admin token from cookies (server-side)
  * This must be used within a Server Component or Server Action
  */
-export function getServerAdminToken(): string | undefined {
+export async function getServerAdminToken(): Promise<string | undefined> {
   return getServerCookie('admin_token');
 }
 
@@ -104,12 +101,12 @@ export function getServerAdminToken(): string | undefined {
  * Set the admin token in cookies (server-side)
  * This must be used within a Server Component or Server Action
  */
-export function setServerAdminToken(): void {
+export async function setServerAdminToken(): Promise<void> {
   const token = process.env.NODE_ENV === 'development' 
     ? 'super-secure-admin-token-for-development'
     : process.env.ADMIN_TOKEN || 'temporary-token';
     
-  setServerCookie('admin_token', token, {
+  await setServerCookie('admin_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

@@ -97,8 +97,8 @@ export async function GET(
   context: { params: { courseId: string } }
 ) {
   try {
-    // Access the courseId directly from the params object
-    const courseId = context.params.courseId;
+    // Await params in Next.js 15
+    const { courseId } = await context.params;
     
     if (!courseId) {
       return NextResponse.json(

@@ -42,18 +42,19 @@ async function isUserEnrolled(userId: string, courseId: string): Promise<boolean
   }
 }
 
+// Verify authentication and admin status
 async function verifyAuth() {
+  // Allow everything in development
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+
   try {
-    const token = getServerAdminToken();
-    
-    if (!token || !isValidAdminToken(token)) {
-      console.error('Authentication failed: Admin token missing');
-      throw new Error('Unauthorized');
-    }
-    console.log('Admin authentication successful');
+    const token = await getServerAdminToken();
+    return isValidAdminToken(token);
   } catch (error) {
-    console.error('Authentication error:', error);
-    throw new Error('Unauthorized');
+    console.error('Error verifying auth:', error);
+    return false;
   }
 }
 
