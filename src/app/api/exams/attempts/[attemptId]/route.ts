@@ -113,14 +113,47 @@ export async function POST(
     
     // Update the attempt
     const updateData: any = {};
-    if (status) updateData.status = status;
+    
+    // Convert status to completed boolean
+    if (status === 'completed') {
+      updateData.completed = true;
+      updateData.completed_at = new Date().toISOString();
+      
+      // Calculate score if not provided
+      if (score === undefined) {
+        // Get all answers for this attempt
+        const { data: answers, error: answersError } = await supabase
+          .from('user_exam_answers')
+          .select('is_correct')
+          .eq('attempt_id', attemptId);
+        
+        if (!answersError && answers) {
+          const correctAnswers = answers.filter(a => a.is_correct).length;
+          const totalQuestions = answers.length;
+          
+          if (totalQuestions > 0) {
+            const calculatedScore = Math.round((correctAnswers / totalQuestions) * 100);
+            updateData.score = calculatedScore;
+            
+            // Get exam to check passing score
+            const { data: examData, error: examError } = await supabase
+              .from('exams')
+              .select('passing_score')
+              .eq('id', attemptData.exam_id)
+              .single();
+            
+            if (!examError && examData) {
+              updateData.passed = calculatedScore >= examData.passing_score;
+            }
+          }
+        }
+      }
+    } else if (status === 'in_progress') {
+      updateData.completed = false;
+    }
+    
     if (score !== undefined) updateData.score = score;
     if (passed !== undefined) updateData.passed = passed;
-    
-    // If setting status to complete, add completed_at
-    if (status === 'completed') {
-      updateData.completed_at = new Date().toISOString();
-    }
     
     const { data, error } = await supabase
       .from('user_exam_attempts')
@@ -130,6 +163,14 @@ export async function POST(
       .single();
     
     if (error) {
+      console.error('Error updating attempt:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        updateData
+      });
       return NextResponse.json(
         { error: 'Failed to update attempt' },
         { status: 500 }

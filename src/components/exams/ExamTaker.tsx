@@ -9,11 +9,13 @@ interface ExamAttempt {
   id: string;
   user_id: string;
   exam_id: string;
-  status: 'in_progress' | 'completed';
   score: number | null;
+  completed: boolean;
+  started_at: string;
+  completed_at: string | null;
   passed: boolean | null;
   created_at: string;
-  completed_at: string | null;
+  updated_at: string;
 }
 
 // Updated interface for exam answers
@@ -79,8 +81,8 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         
         const attemptsData = await attemptsResponse.json();
         
-        // Find an incomplete attempt based on status
-        const incompleteAttempt = attemptsData.find((a: ExamAttempt) => a.status !== 'completed');
+        // Find an incomplete attempt based on completed field
+        const incompleteAttempt = attemptsData.find((a: ExamAttempt) => !a.completed);
         
         if (incompleteAttempt) {
           // Resume incomplete attempt
@@ -111,8 +113,8 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
               // Map answers to format used by component
               const answerMap: Record<string, string> = {};
               answersData.forEach((answer: any) => {
-                if (answer.selected_options && answer.selected_options.length > 0) {
-                  answerMap[answer.question_id] = answer.selected_options[0];
+                if (answer.selected_option) {
+                  answerMap[answer.question_id] = answer.selected_option;
                 }
               });
               

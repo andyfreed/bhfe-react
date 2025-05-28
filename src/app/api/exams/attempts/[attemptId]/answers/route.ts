@@ -165,7 +165,7 @@ export async function POST(
         {
           attempt_id: attemptId,
           question_id: questionId,
-          selected_options: selectedOptions,
+          selected_option: selectedOptions[0], // Take the first option since it's a single choice
           is_correct: isCorrect
         }
       ])
@@ -173,13 +173,22 @@ export async function POST(
       .single();
     
     if (error) {
+      console.error('Error saving answer:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      
       // Check if it's a duplicate answer
       if (error.code === '23505') { // PostgreSQL unique violation code
+        console.log('Attempting to update existing answer...');
         // Update the existing answer
         const { data: updatedData, error: updateError } = await supabase
           .from('user_exam_answers')
           .update({
-            selected_options: selectedOptions,
+            selected_option: selectedOptions[0],
             is_correct: isCorrect
           })
           .eq('attempt_id', attemptId)
@@ -188,6 +197,7 @@ export async function POST(
           .single();
         
         if (updateError) {
+          console.error('Error updating answer:', updateError);
           return NextResponse.json(
             { error: 'Failed to update answer' },
             { status: 500 }
