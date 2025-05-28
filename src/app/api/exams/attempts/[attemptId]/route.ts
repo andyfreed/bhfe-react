@@ -127,9 +127,15 @@ export async function POST(
           .select('is_correct')
           .eq('attempt_id', attemptId);
         
-        if (!answersError && answers) {
+        // Get total number of questions in the exam
+        const { data: examQuestions, error: questionsError } = await supabase
+          .from('exam_questions')
+          .select('id')
+          .eq('exam_id', attemptData.exam_id);
+        
+        if (!answersError && answers && !questionsError && examQuestions) {
           const correctAnswers = answers.filter(a => a.is_correct).length;
-          const totalQuestions = answers.length;
+          const totalQuestions = examQuestions.length;
           
           if (totalQuestions > 0) {
             const calculatedScore = Math.round((correctAnswers / totalQuestions) * 100);
@@ -144,6 +150,7 @@ export async function POST(
             
             if (!examError && examData) {
               updateData.passed = calculatedScore >= examData.passing_score;
+              console.log(`Score: ${calculatedScore}, Passing score: ${examData.passing_score}, Passed: ${updateData.passed}`);
             }
           }
         }
