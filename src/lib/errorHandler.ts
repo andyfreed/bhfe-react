@@ -35,9 +35,11 @@ export function setupGlobalErrorHandlers() {
       } else if (typeof reason === 'object' && reason !== null) {
         // For objects, stringify them properly
         try {
-          errorMessage = `Object Error: ${JSON.stringify(reason)}`;
+          errorMessage = `Object Error: ${JSON.stringify(reason, null, 2)}`;
+          console.error('Unhandled rejection object:', reason);
         } catch (e) {
           errorMessage = `Object Error: [Cannot stringify error object]`;
+          console.error('Unhandled rejection object (unstringifiable):', reason);
         }
       } else if (reason !== undefined && reason !== null) {
         // For primitive values
@@ -46,8 +48,21 @@ export function setupGlobalErrorHandlers() {
 
       console.error(`Global error handler caught unhandled promise rejection: ${errorMessage}`);
       
+      // Log the full event for debugging
+      console.error('Full rejection event:', event);
+      
       // Prevent the default error handling to use our custom handling
       event.preventDefault();
+      
+      // In development, show a more detailed error
+      if (process.env.NODE_ENV === 'development') {
+        // Create a custom error event with better formatting
+        const errorEvent = new ErrorEvent('error', {
+          message: errorMessage,
+          error: reason
+        });
+        window.dispatchEvent(errorEvent);
+      }
     });
 
     // Handler for uncaught exceptions
@@ -61,8 +76,27 @@ export function setupGlobalErrorHandlers() {
         return;
       }
 
-      console.error('Global error handler caught uncaught exception:', 
-        event.error instanceof Error ? event.error.message : String(event.error || event.message));
+      const error = event.error || event.message;
+      let errorMessage = 'Unknown error';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        try {
+          errorMessage = JSON.stringify(error, null, 2);
+        } catch (e) {
+          errorMessage = '[Cannot stringify error object]';
+        }
+      } else if (error !== undefined && error !== null) {
+        errorMessage = String(error);
+      }
+
+      console.error('Global error handler caught uncaught exception:', errorMessage);
+      
+      // Log the full error for debugging
+      if (error instanceof Error && error.stack) {
+        console.error('Error stack:', error.stack);
+      }
 
       // Don't prevent default for regular errors, just log them
     });
@@ -79,7 +113,7 @@ export function safeStringify(obj: any): string {
   
   if (typeof obj === 'object' && obj !== null) {
     try {
-      return JSON.stringify(obj);
+      return JSON.stringify(obj, null, 2);
     } catch (e) {
       return '[Object cannot be stringified]';
     }

@@ -132,7 +132,9 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
           });
           
           if (!newAttemptResponse.ok) {
-            throw new Error('Failed to create exam attempt');
+            const errorText = await newAttemptResponse.text();
+            console.error('Failed to create exam attempt:', errorText);
+            throw new Error(`Failed to create exam attempt: ${errorText}`);
           }
           
           const newAttempt = await newAttemptResponse.json();
@@ -148,7 +150,9 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
         });
         
         if (!examResponse.ok) {
-          throw new Error('Failed to load exam');
+          const errorText = await examResponse.text();
+          console.error('Failed to load exam:', errorText);
+          throw new Error(`Failed to load exam: ${errorText}`);
         }
         
         const { exam: examData, questions: questionsData } = await examResponse.json();
@@ -157,9 +161,21 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
       } catch (err) {
         console.error('Error loading exam:', err);
         
-        // In development mode, provide a more detailed error message
+        // Better error handling
+        let errorMessage = 'Error loading exam. Please try again later.';
+        
+        if (err instanceof Error) {
+          errorMessage = err.message;
+        } else if (typeof err === 'object' && err !== null) {
+          // Handle cases where error is an object
+          errorMessage = JSON.stringify(err);
+        } else {
+          errorMessage = String(err);
+        }
+        
+        // In development mode, show full error
         if (process.env.NODE_ENV === 'development') {
-          setError(`Error loading exam: ${err instanceof Error ? err.message : String(err)}`);
+          setError(`Error loading exam: ${errorMessage}`);
         } else {
           setError('Error loading exam. Please try again later.');
         }
@@ -168,7 +184,12 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
       }
     }
     
-    loadExam();
+    loadExam().catch((err) => {
+      // Catch any unhandled promise rejections
+      console.error('Unhandled error in loadExam:', err);
+      setError('An unexpected error occurred. Please refresh the page.');
+      setLoading(false);
+    });
   }, [examId]);
   
   // Get current page of questions
@@ -206,11 +227,23 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to save answer');
+        const errorText = await response.text();
+        console.error('Failed to save answer:', errorText);
+        throw new Error(`Failed to save answer: ${errorText}`);
       }
     } catch (err) {
       console.error('Error saving answer:', err);
-      // Could show a notification that saving failed but continue
+      
+      // Show a user-friendly error message
+      let errorMessage = 'Failed to save answer';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      // You could show a toast notification here
+      // For now, we'll just log it and continue
+      // The answer is still saved locally
+      console.warn('Answer saved locally but failed to sync with server:', errorMessage);
     }
   };
   
@@ -264,7 +297,9 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to submit exam');
+        const errorText = await response.text();
+        console.error('Failed to submit exam:', errorText);
+        throw new Error(`Failed to submit exam: ${errorText}`);
       }
       
       const completedAttempt = await response.json();
@@ -272,7 +307,19 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
       setCompleted(true);
     } catch (err) {
       console.error('Error submitting exam:', err);
-      setError('Error submitting exam. Please try again.');
+      
+      // Better error handling
+      let errorMessage = 'Error submitting exam. Please try again.';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = JSON.stringify(err);
+      } else {
+        errorMessage = String(err);
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
