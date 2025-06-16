@@ -4,11 +4,11 @@ import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 export async function GET(request: NextRequest) {
   try {
     // Check for admin token
-    const adminToken = getServerAdminToken();
+    const adminToken = await getServerAdminToken();
     console.log('Admin token from cookie:', adminToken);
     
     // Check if token is valid
-    const isValid = isValidAdminToken(adminToken);
+    const isValid = isValidAdminToken(adminToken || '');
     console.log('Is token valid?', isValid);
     console.log('NODE_ENV:', process.env.NODE_ENV);
     
