@@ -14,14 +14,24 @@ export default function DebugSupabase() {
       try {
         setLoading(true);
         // Try to fetch something simple from the database
-        const { data, error } = await supabase.from('users').select('count()', { count: 'exact' });
-        
-        if (error) throw error;
-        
-        setDbResponse({
-          success: true,
-          data
-        });
+        try {
+          const result = await supabase
+            .from('users')
+            .select('*', { count: 'exact', head: true });
+          
+          // Handle both mock and real Supabase responses
+          if ('error' in result && result.error) {
+            throw result.error;
+          }
+          
+          setDbResponse({
+            success: true,
+            count: 'count' in result ? result.count : 0,
+            message: 'Connection successful'
+          });
+        } catch (queryError) {
+          throw queryError;
+        }
       } catch (err: any) {
         console.error('Supabase test error:', err);
         setError(err.message || 'An error occurred testing Supabase connection');
