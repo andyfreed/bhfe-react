@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -9,7 +9,7 @@ interface Props {
   }>;
 }
 
-export default function CourseSuccessPage({ params }: Props) {
+function CourseSuccessContent({ params }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [courseTitle, setCourseTitle] = useState('');
   const searchParams = useSearchParams();
@@ -74,5 +74,20 @@ export default function CourseSuccessPage({ params }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CourseSuccessPage({ params }: Props) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-primary-DEFAULT mx-auto mb-4"></div>
+          <p className="text-theme-neutral-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CourseSuccessContent params={params} />
+    </Suspense>
   );
 } 
