@@ -20,13 +20,14 @@ async function verifyAuth() {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin authentication
     await verifyAuth();
     
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     
     // Get Supabase client
     const supabase = createServerSupabaseClient();
@@ -66,13 +67,14 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin authentication
     await verifyAuth();
     
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     
     // Parse the request body
     const data = await request.json();
@@ -114,13 +116,14 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin authentication
     await verifyAuth();
     
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     
     // Get Supabase client
     const supabase = createServerSupabaseClient();
