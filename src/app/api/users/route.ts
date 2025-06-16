@@ -66,6 +66,13 @@ async function verifyAuth(supabase: SupabaseClient) {
   // Check for admin token cookie first
   const cookieStore = await cookies();
   const adminToken = cookieStore.get('admin_token');
+  const adminVerified = cookieStore.get('admin-verified');
+  
+  // In production, check for admin-verified cookie
+  if (process.env.NODE_ENV === 'production' && adminVerified?.value === 'true') {
+    console.log('Admin verified cookie found (production)');
+    return true;
+  }
   
   if ((adminToken?.value === 'super-secure-admin-token-for-development' || 
        adminToken?.value === 'temporary-token') && 
