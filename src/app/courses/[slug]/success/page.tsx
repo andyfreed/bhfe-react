@@ -1,19 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Props {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export default function CourseSuccessPage({ params }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [courseTitle, setCourseTitle] = useState('');
   const searchParams = useSearchParams();
-  const { slug } = params;
+  const { slug } = use(params);
 
   useEffect(() => {
     // Simulate loading
