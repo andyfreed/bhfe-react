@@ -63,6 +63,15 @@ interface UserQueryParams {
 
 // Verify admin authorization
 async function verifyAuth(supabase: SupabaseClient) {
+  // Check for admin session cookie first
+  const cookieStore = await cookies();
+  const adminSession = cookieStore.get('admin-session');
+  
+  if (adminSession?.value === 'true') {
+    console.log('Admin session cookie found');
+    return true;
+  }
+
   // Allow everything in development
   if (process.env.NODE_ENV === 'development') {
     return true;

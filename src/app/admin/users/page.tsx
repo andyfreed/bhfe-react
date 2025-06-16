@@ -80,7 +80,9 @@ export default function AdminUsersPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/users");
+      const response = await fetch("/api/users", {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -132,6 +134,7 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email: resetEmail }),
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -156,6 +159,7 @@ export default function AdminUsersPage() {
     try {
       const response = await fetch(`/api/users/${selectedUser.id}`, {
         method: "DELETE",
+        credentials: 'include'
       });
       
       if (!response.ok) {
