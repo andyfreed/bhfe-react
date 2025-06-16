@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create a server-side Supabase client (with service role key)
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Prepare enrollment data with defaults
     const enrollmentData = {
@@ -102,7 +102,7 @@ export async function GET() {
     await verifyAuth();
     
     // Create a server-side Supabase client (with service role key)
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Fetch all enrollments
     const { data, error } = await supabase

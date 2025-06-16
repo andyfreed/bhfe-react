@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const adminToken = cookieStore.get('admin_token')?.value;
     
     console.log('API: Attempting to verify authentication');
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     
     // Check session (standard auth mechanism)
     const { data: { session } } = await supabase.auth.getSession();
@@ -260,7 +260,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Check if user is authenticated
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {

@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     // Create Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
 
     // Register the user
     const { data, error } = await supabase.auth.signUp({

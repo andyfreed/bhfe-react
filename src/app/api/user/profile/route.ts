@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
   try {
     // Create a new supabase server client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Get the authorization header from the request
     const authHeader = request.headers.get('authorization');

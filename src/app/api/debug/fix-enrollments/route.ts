@@ -8,7 +8,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 export async function GET(request: NextRequest) {
   console.log('Fix enrollments endpoint called');
   
-  const supabase = createServerSupabaseClient() as any;
+  const supabase = await createServerSupabaseClient() as any;
   
   try {
     // Get query parameters

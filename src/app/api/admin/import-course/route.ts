@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     console.log('Importing course via dedicated endpoint:', course.title);
     
     // Create a direct connection to the database with server client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // BACKUP APPROACH: Try direct SQL query if RLS is causing issues
     try {

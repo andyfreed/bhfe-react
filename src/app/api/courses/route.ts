@@ -34,7 +34,7 @@ export async function GET() {
     await verifyAuth();
     
     // Create server client that bypasses RLS
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Use a simpler approach to avoid RLS issues
     const { data: courses, error: coursesError } = await supabase
@@ -102,18 +102,17 @@ export async function POST(request: Request) {
           const tocBuffer = Buffer.from(tocArrayBuffer);
           
           const tocPath = `courses/${Date.now()}-${tocFile.name}`;
-          const tocResult = await uploadFileFromServer(
-            tocBuffer,
-            tocFile.name,
-            'course-files', 
-            tocPath
-          );
-          console.log('Uploaded TOC file result:', tocResult);
-          
-          if (tocResult.data && tocResult.data.publicUrl) {
-            courseData.table_of_contents_url = tocResult.data.publicUrl;
-          } else {
-            console.error('Failed to get public URL for TOC file:', tocResult.error);
+          const tocBlob = new Blob([tocBuffer], { type: tocFile.type || 'application/pdf' });
+          try {
+            const tocPublicUrl = await uploadFileFromServer(
+              tocBlob,
+              'course-files',
+              tocPath
+            );
+            console.log('Uploaded TOC file URL:', tocPublicUrl);
+            courseData.table_of_contents_url = tocPublicUrl;
+          } catch (uploadError) {
+            console.error('Failed to upload TOC file:', uploadError);
             return NextResponse.json(
               { error: 'Failed to upload table of contents file' },
               { status: 500 }
@@ -135,18 +134,17 @@ export async function POST(request: Request) {
           const contentBuffer = Buffer.from(contentArrayBuffer);
           
           const contentPath = `courses/${Date.now()}-${contentFile.name}`;
-          const contentResult = await uploadFileFromServer(
-            contentBuffer,
-            contentFile.name,
-            'course-files',
-            contentPath
-          );
-          console.log('Uploaded content file result:', contentResult);
-          
-          if (contentResult.data && contentResult.data.publicUrl) {
-            courseData.course_content_url = contentResult.data.publicUrl;
-          } else {
-            console.error('Failed to get public URL for content file:', contentResult.error);
+          const contentBlob = new Blob([contentBuffer], { type: contentFile.type || 'application/pdf' });
+          try {
+            const contentPublicUrl = await uploadFileFromServer(
+              contentBlob,
+              'course-files',
+              contentPath
+            );
+            console.log('Uploaded content file URL:', contentPublicUrl);
+            courseData.course_content_url = contentPublicUrl;
+          } catch (uploadError) {
+            console.error('Failed to upload content file:', uploadError);
             return NextResponse.json(
               { error: 'Failed to upload course content file' },
               { status: 500 }
@@ -258,18 +256,17 @@ export async function PUT(request: Request) {
           const tocBuffer = Buffer.from(tocArrayBuffer);
           
           const tocPath = `courses/${courseId}/toc-${Date.now()}-${tocFile.name}`;
-          const tocResult = await uploadFileFromServer(
-            tocBuffer,
-            tocFile.name,
-            'course-files', 
-            tocPath
-          );
-          console.log('Updated TOC file result:', tocResult);
-          
-          if (tocResult.data && tocResult.data.publicUrl) {
-            courseData.table_of_contents_url = tocResult.data.publicUrl;
-          } else {
-            console.error('Failed to get public URL for TOC file:', tocResult.error);
+          const tocBlob = new Blob([tocBuffer], { type: tocFile.type || 'application/pdf' });
+          try {
+            const tocPublicUrl = await uploadFileFromServer(
+              tocBlob,
+              'course-files',
+              tocPath
+            );
+            console.log('Updated TOC file URL:', tocPublicUrl);
+            courseData.table_of_contents_url = tocPublicUrl;
+          } catch (uploadError) {
+            console.error('Failed to upload TOC file:', uploadError);
             return NextResponse.json(
               { error: 'Failed to upload table of contents file' },
               { status: 500 }
@@ -291,18 +288,17 @@ export async function PUT(request: Request) {
           const contentBuffer = Buffer.from(contentArrayBuffer);
           
           const contentPath = `courses/${courseId}/content-${Date.now()}-${contentFile.name}`;
-          const contentResult = await uploadFileFromServer(
-            contentBuffer,
-            contentFile.name,
-            'course-files',
-            contentPath
-          );
-          console.log('Updated content file result:', contentResult);
-          
-          if (contentResult.data && contentResult.data.publicUrl) {
-            courseData.course_content_url = contentResult.data.publicUrl;
-          } else {
-            console.error('Failed to get public URL for content file:', contentResult.error);
+          const contentBlob = new Blob([contentBuffer], { type: contentFile.type || 'application/pdf' });
+          try {
+            const contentPublicUrl = await uploadFileFromServer(
+              contentBlob,
+              'course-files',
+              contentPath
+            );
+            console.log('Updated content file URL:', contentPublicUrl);
+            courseData.course_content_url = contentPublicUrl;
+          } catch (uploadError) {
+            console.error('Failed to upload content file:', uploadError);
             return NextResponse.json(
               { error: 'Failed to upload course content file' },
               { status: 500 }

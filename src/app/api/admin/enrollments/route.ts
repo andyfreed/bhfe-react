@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Fetch the enrollments with proper error handling
     let query = supabase
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 // POST endpoint to create a new enrollment
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Note: We're bypassing auth checks for now since we're using client-side localStorage auth
     
@@ -181,7 +181,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Note: We're bypassing auth checks for now since we're using client-side localStorage auth
     

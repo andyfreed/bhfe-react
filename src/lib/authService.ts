@@ -1,4 +1,4 @@
-import { supabase } from './supabaseServer';
+import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
 import { isDevelopment } from './devUtils';
 

@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 export async function GET() {
   try {
     // Create a server-side Supabase client (with service role key)
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Check if the admin user already exists
     const { data: existingUser, error: checkError } = await supabase

@@ -26,7 +26,7 @@ async function isUserEnrolled(userId: string, courseId: string): Promise<boolean
   try {
     if (!userId || !courseId) return false;
     
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     
     // Try using the RPC function first (more reliable)
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
@@ -125,7 +125,7 @@ export async function GET(
       }
       
       // Check user's enrollment status for additional validation
-      const supabase = createServerSupabaseClient() as any;
+      const supabase = await createServerSupabaseClient() as any;
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session && session.user) {
@@ -163,7 +163,7 @@ export async function GET(
     }
     
     // Legacy flow for checking enrollment first
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     const { data: { session } } = await supabase.auth.getSession();
     
     // If the user is logged in, check if they're enrolled in this course
@@ -289,25 +289,20 @@ export async function PUT(
           const tocPath = `courses/${courseId}/toc-${Date.now()}-${tocFile.name}`;
           console.log("Uploading TOC file to path:", tocPath);
           
-          const tocUploadResult = await uploadFileFromServer(
-            tocBuffer, 
-            tocFile.name,
-            'course-files', 
-            tocPath
-          );
-          
-          if (tocUploadResult.error) {
-            console.error("TOC file upload error:", tocUploadResult.error);
-            throw new Error(`TOC upload failed: ${tocUploadResult.error.message}`);
+          const tocBlob = new Blob([tocBuffer], { type: tocFile.type || 'application/pdf' });
+          try {
+            const tocPublicUrl = await uploadFileFromServer(
+              tocBlob,
+              'course-files',
+              tocPath
+            );
+            
+            courseData.table_of_contents_url = tocPublicUrl;
+            console.log('Updated TOC file URL:', courseData.table_of_contents_url);
+          } catch (uploadError) {
+            console.error("TOC file upload error:", uploadError);
+            throw new Error(`TOC upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
           }
-          
-          if (!tocUploadResult.data || !tocUploadResult.data.publicUrl) {
-            console.error("TOC file upload returned invalid data:", tocUploadResult);
-            throw new Error("TOC upload failed: No public URL returned");
-          }
-          
-          courseData.table_of_contents_url = tocUploadResult.data.publicUrl;
-          console.log('Updated TOC file URL:', courseData.table_of_contents_url);
           
           // Verify the URL is accessible
           const isAccessible = await isUrlAccessible(courseData.table_of_contents_url);
@@ -337,25 +332,20 @@ export async function PUT(
           const contentPath = `courses/${courseId}/content-${Date.now()}-${contentFile.name}`;
           console.log("Uploading content file to path:", contentPath);
           
-          const contentUploadResult = await uploadFileFromServer(
-            contentBuffer,
-            contentFile.name,
-            'course-files',
-            contentPath
-          );
-          
-          if (contentUploadResult.error) {
-            console.error("Content file upload error:", contentUploadResult.error);
-            throw new Error(`Content upload failed: ${contentUploadResult.error.message}`);
+          const contentBlob = new Blob([contentBuffer], { type: contentFile.type || 'application/pdf' });
+          try {
+            const contentPublicUrl = await uploadFileFromServer(
+              contentBlob,
+              'course-files',
+              contentPath
+            );
+            
+            courseData.course_content_url = contentPublicUrl;
+            console.log('Updated content file URL:', courseData.course_content_url);
+          } catch (uploadError) {
+            console.error("Content file upload error:", uploadError);
+            throw new Error(`Content upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
           }
-          
-          if (!contentUploadResult.data || !contentUploadResult.data.publicUrl) {
-            console.error("Content file upload returned invalid data:", contentUploadResult);
-            throw new Error("Content upload failed: No public URL returned");
-          }
-          
-          courseData.course_content_url = contentUploadResult.data.publicUrl;
-          console.log('Updated content file URL:', courseData.course_content_url);
           
           // Verify the URL is accessible
           const isAccessible = await isUrlAccessible(courseData.course_content_url);

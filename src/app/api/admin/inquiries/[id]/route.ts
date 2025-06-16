@@ -30,7 +30,7 @@ export async function GET(
     const id = resolvedParams.id;
     
     // Get Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Fetch the inquiry by ID
     const { data, error } = await supabase
@@ -80,7 +80,7 @@ export async function PUT(
     const data = await request.json();
     
     // Get Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Update the inquiry by ID
     const { data: updatedInquiry, error } = await supabase
@@ -126,7 +126,7 @@ export async function DELETE(
     const id = resolvedParams.id;
     
     // Get Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Delete the inquiry by ID
     const { error } = await supabase

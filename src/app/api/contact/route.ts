@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
     
     // Get Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Insert into contact_inquiries table
     const { data: contactInquiry, error } = await supabase

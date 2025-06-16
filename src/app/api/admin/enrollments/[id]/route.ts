@@ -36,7 +36,7 @@ export async function GET(
     const resolvedParams = await params;
     const id = resolvedParams.id;
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Verify admin access
     const isAdmin = await verifyAdminAuth(request);
@@ -87,7 +87,7 @@ export async function PATCH(
     const resolvedParams = await params;
     const id = resolvedParams.id;
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Note: We're bypassing auth checks for now since we're using client-side localStorage auth
     
@@ -192,7 +192,7 @@ export async function PUT(
     // Get the request body
     const updateData = await request.json();
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Extract the fields to update
     const {
@@ -268,7 +268,7 @@ export async function DELETE(
     const resolvedParams = await params;
     const id = resolvedParams.id;
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Verify admin access
     const isAdmin = await verifyAdminAuth(request);

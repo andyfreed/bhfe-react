@@ -8,7 +8,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 export async function GET(request: NextRequest) {
   console.log('DEBUG endpoint called to examine database structure');
   
-  const supabase = createServerSupabaseClient() as any;
+  const supabase = await createServerSupabaseClient() as any;
   
   try {
     // Get query parameters

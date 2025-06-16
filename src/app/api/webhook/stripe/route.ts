@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Create the Supabase client
-      const supabase = createServerSupabaseClient();
+      const supabase = await createServerSupabaseClient();
       
       // Get user by email
       const { data: users, error: userError } = await supabase

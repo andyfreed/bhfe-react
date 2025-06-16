@@ -51,7 +51,7 @@ export async function createEnrollment(
   } = {}
 ) {
   const { type, status, notes, adminUserId } = options;
-  const client = createServerSupabaseClient();
+  const client = await createServerSupabaseClient();
   
   try {
     // Check if enrollment already exists

@@ -38,7 +38,7 @@ export async function GET(
     }
     
     // Create a server-side Supabase client (with service role key)
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Fetch the enrollment with user and course details
     const { data, error } = await supabase
@@ -103,7 +103,7 @@ export async function PUT(
     const updateData = await request.json();
     
     // Create a server-side Supabase client (with service role key)
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Prepare the update object
     const updateObject: {
@@ -205,7 +205,7 @@ export async function DELETE(
     }
     
     // Create a server-side Supabase client (with service role key)
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Delete the enrollment
     const { error } = await supabase

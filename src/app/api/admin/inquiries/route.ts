@@ -24,7 +24,7 @@ export async function GET() {
     await verifyAuth();
     
     // Get Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Fetch all inquiries, ordered by most recent first
     const { data, error } = await supabase

@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   try {
     // Create a new supabase server client with service role to bypass RLS
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     
     // Get the session using the client
     const { data: { session } } = await supabase.auth.getSession();

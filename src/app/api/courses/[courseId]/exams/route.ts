@@ -8,7 +8,7 @@ async function isUserEnrolled(userId: string, courseId: string): Promise<boolean
   try {
     if (!userId || !courseId) return false;
     
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     
     // Try using the RPC function first (more reliable)
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
@@ -75,7 +75,7 @@ export async function GET(
     }
     
     // Check if this is a student trying to access exams for their enrolled course
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     const { data: { session } } = await supabase.auth.getSession();
     
     // If the user is logged in, check if they're enrolled in this course

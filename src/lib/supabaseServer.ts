@@ -45,6 +45,9 @@ export async function uploadFileFromServerWithAuth(
   }
 }
 
+// Alias for backward compatibility
+export const uploadFileFromServer = uploadFileFromServerWithAuth;
+
 // This file should only be imported in server components and API routes
 export async function createServerSupabaseClient() {
   const { createClient } = await import('./supabase/server');

@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 export async function POST(request: NextRequest) {
   try {
     // Create Supabase client
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = await createServerSupabaseClient() as any;
     
     // Check if the user is an admin or has admin token in development
     let isAdmin = false;
