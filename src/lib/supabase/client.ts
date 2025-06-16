@@ -1,16 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr'
 
-// Get Supabase credentials from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Check if we have valid credentials
-const hasValidCredentials = !!(supabaseUrl && supabaseKey);
-
-// Create the Supabase client
-export const supabase = hasValidCredentials 
-  ? createClient(supabaseUrl, supabaseKey)
-  : createMockClient();
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 // Create a mock client for development or when credentials are missing
 function createMockClient() {

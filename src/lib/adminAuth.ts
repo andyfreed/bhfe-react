@@ -41,7 +41,7 @@ export async function getUserId(): Promise<string | null> {
     if (adminUserId) return adminUserId;
     
     // Otherwise try to get the user ID from Supabase auth
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     return session?.user?.id || null;

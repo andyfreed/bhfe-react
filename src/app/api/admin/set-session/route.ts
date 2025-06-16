@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Get the current user - this will check the Supabase auth cookies
     const { data: { user }, error } = await supabase.auth.getUser();

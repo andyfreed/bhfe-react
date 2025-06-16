@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const cookieInfo = allCookies.map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' }));
     
     // Create Supabase client
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Get session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();

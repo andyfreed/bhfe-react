@@ -1,5 +1,7 @@
+import { createBrowserClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { isDevelopment, logDevEnvironmentStatus } from './devUtils';
+import { createClient as createServerClient } from './supabase/server';
 
 // Get the Supabase URL and key from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -11,13 +13,18 @@ if (isDevelopment) {
   logDevEnvironmentStatus();
 }
 
+// Create the Supabase client - use SSR-compatible client for browser
+export const supabase = typeof window !== 'undefined' 
+  ? createBrowserClient(supabaseUrl, supabaseKey)
+  : createClient(supabaseUrl, supabaseKey);
 
+// For server-side operations - use the cookie-aware server client
+export async function createServerSupabaseClient() {
+  return createServerClient();
+}
 
-// Create the Supabase client - always use real Supabase
-export const supabase = createClient(supabaseUrl, supabaseKey);
-
-// For server-side operations
-export function createServerSupabaseClient() {
+// For service role operations (bypasses RLS)
+export function createServiceRoleClient() {
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       persistSession: false,
@@ -68,7 +75,7 @@ export async function uploadFileFromServer(
   try {
     console.log(`Uploading file to Supabase Storage: ${bucket}/${path ? `${path}/` : ''}${fileName}`);
     
-    const client = createServerSupabaseClient();
+    const client = createServiceRoleClient();
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     // Perform the upload
