@@ -1,7 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { isDevelopment, logDevEnvironmentStatus } from './devUtils';
-import { createClient as createServerClient } from './supabase/server';
 
 // Get the Supabase URL and key from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -18,8 +17,10 @@ export const supabase = typeof window !== 'undefined'
   ? createBrowserClient(supabaseUrl, supabaseKey)
   : createClient(supabaseUrl, supabaseKey);
 
-// For server-side operations - use the cookie-aware server client
+// For server-side operations - this should only be imported in server components/API routes
 export async function createServerSupabaseClient() {
+  // Dynamically import to prevent client-side usage
+  const { createClient: createServerClient } = await import('./supabase/server');
   return createServerClient();
 }
 
