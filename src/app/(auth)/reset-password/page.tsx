@@ -62,7 +62,7 @@ function ResetPasswordForm() {
         throw new Error(error.message);
       }
       
-      setSuccess(true);
+      setSuccess('Password reset successfully! Redirecting to login...');
       
       // Automatically redirect to login after 3 seconds
       setTimeout(() => {
