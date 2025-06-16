@@ -6,7 +6,7 @@ import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 async function verifyAdminAuth() {
   try {
     // Check for admin token
-    const adminToken = getServerAdminToken();
+    const adminToken = await getServerAdminToken();
     
     // For development convenience
     if (

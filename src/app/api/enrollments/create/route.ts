@@ -48,15 +48,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Create the enrollment using our utility function
-    const result = await createEnrollment(client as any, {
+    const result = await createEnrollment(
       userId,
       courseId,
-      type: type || EnrollmentType.ADMIN,
-      status: status || EnrollmentStatus.ACTIVE,
-      notes,
-      // In a real app, you'd get the admin user ID from the authenticated user
-      adminUserId: 'a3b1c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d' // Default admin ID
-    });
+      {
+        type: type || EnrollmentType.ADMIN,
+        status: status || EnrollmentStatus.ACTIVE,
+        notes,
+        adminUserId: 'a3b1c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d' // Default admin ID
+      }
+    );
 
     if (!result.success) {
       // If it's an existing enrollment, return a conflict status

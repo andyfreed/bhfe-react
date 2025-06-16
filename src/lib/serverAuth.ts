@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 export async function validateAdmin(): Promise<boolean> {
   try {
     // Get the cookie directly
-    const cookiesList = cookies();
+    const cookiesList = await cookies();
     const token = cookiesList.get('admin_token')?.value;
     return token === 'temporary-token';
   } catch (error) {
@@ -20,9 +20,9 @@ export async function validateAdmin(): Promise<boolean> {
 /**
  * Set admin token directly
  */
-export function setDirectAdminToken(): void {
-  const cookieStore = cookies();
-  cookieStore.set('admin_token', 'temporary-token', {
+export async function setDirectAdminToken(): Promise<void> {
+  const cookieStore = await cookies();
+  (cookieStore as any).set('admin_token', 'temporary-token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -43,7 +43,7 @@ export async function checkAndSetAdminBySession(supabase: SupabaseClient): Promi
       
       // If the logged in user is an admin, set the admin token
       if (admin) {
-        setDirectAdminToken();
+        await setDirectAdminToken();
         return true;
       }
     }
@@ -53,4 +53,6 @@ export async function checkAndSetAdminBySession(supabase: SupabaseClient): Promi
     console.error('Error checking admin session:', error);
     return false;
   }
-} 
+}
+
+ 

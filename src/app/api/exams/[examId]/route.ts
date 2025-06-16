@@ -4,7 +4,7 @@ import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 
 async function verifyAuth() {
   try {
-    const token = getServerAdminToken();
+    const token = await getServerAdminToken();
     
     if (!token || !isValidAdminToken(token)) {
       console.error('Authentication failed: Admin token missing');
@@ -22,6 +22,11 @@ export async function GET(
   { params }: { params: Promise<{ examId: string }> }
 ) {
   try {
+    const token = await getServerAdminToken();
+    if (!token || !isValidAdminToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Await the params which is a Promise in Next.js 15
     const resolvedParams = await params;
     const examId = resolvedParams.examId;

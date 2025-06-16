@@ -41,14 +41,14 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Await params in Next.js 15
+    // Await the params which is a Promise in Next.js 15
     const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const userId = resolvedParams.id;
 
-    console.log('Fetching user data for ID:', id);
+    console.log('Fetching user data for ID:', userId);
     
     const supabase = createAdminSupabase();
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(id);
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
     let authUser = userData?.user;
 
     // If auth lookup failed with "User not found", fall back to public.users table
@@ -57,7 +57,7 @@ export async function GET(
       const { data: fallbackUser, error: fallbackError } = await supabase
         .from('users')
         .select('id, email, created_at, updated_at, role')
-        .eq('id', id)
+        .eq('id', userId)
         .single();
 
       if (fallbackError || !fallbackUser) {
@@ -92,14 +92,14 @@ export async function GET(
     }
 
     // Fetch profile data with new columns
-    console.log('Fetching profile data for user ID:', id);
+    console.log('Fetching profile data for user ID:', userId);
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select(`role, full_name, company, phone,
                first_name, last_name,
                billing_street, billing_city, billing_state, billing_zip, billing_country,
                shipping_street, shipping_city, shipping_state, shipping_zip, shipping_country`)
-      .eq('id', id)
+      .eq('id', userId)
       .single();
 
     if (profileError) {
@@ -112,7 +112,7 @@ export async function GET(
     const { data: licensesData } = await supabase
       .from('user_licenses')
       .select('id, license_type, license_number')
-      .eq('user_id', id);
+      .eq('user_id', userId);
 
     try {
       // Construct complete user object combining auth data and profile data
@@ -163,9 +163,9 @@ export async function PUT(
   try {
     if (!(await verifyAdminAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Await params in Next.js 15
+    // Await the params which is a Promise in Next.js 15
     const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const userId = resolvedParams.id;
     const body = await request.json();
     const { email,
             first_name,
@@ -177,7 +177,7 @@ export async function PUT(
             shipping_address,
             licenses } = body;
 
-    console.log('Processing update for user:', id);
+    console.log('Processing update for user:', userId);
     console.log('Update data:', { email, first_name, last_name, company, phone, role, billing_address, shipping_address, licenses });
     
     const supabase = createAdminSupabase();
@@ -348,7 +348,7 @@ export async function DELETE(
   try {
     if (!(await verifyAdminAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Await params in Next.js 15
+    // Await the params which is a Promise in Next.js 15
     const resolvedParams = await params;
     const userId = resolvedParams.id;
 
