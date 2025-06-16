@@ -70,8 +70,9 @@ export function isValidAdminToken(token?: string): boolean {
     return false;
   }
   
-  // Accept our development token in dev mode
-  const isDevelopmentToken = token === 'super-secure-admin-token-for-development' && 
+  // Accept our development tokens in dev mode
+  const isDevelopmentToken = (token === 'super-secure-admin-token-for-development' || 
+                             token === 'temporary-token') && 
                            process.env.NODE_ENV === 'development';
   
   console.log('[isValidAdminToken] isDevelopmentToken:', isDevelopmentToken);
@@ -109,7 +110,7 @@ export async function setServerAdminToken(): Promise<void> {
   await setServerCookie('admin_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: 3600 * 24, // 24 hours
     path: '/'
   });
