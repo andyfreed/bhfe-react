@@ -17,13 +17,6 @@ export const supabase = typeof window !== 'undefined'
   ? createBrowserClient(supabaseUrl, supabaseKey)
   : createClient(supabaseUrl, supabaseKey);
 
-// For server-side operations - this should only be imported in server components/API routes
-export async function createServerSupabaseClient() {
-  // Dynamically import to prevent client-side usage
-  const { createClient: createServerClient } = await import('./supabase/server');
-  return createServerClient();
-}
-
 // For service role operations (bypasses RLS)
 export function createServiceRoleClient() {
   return createClient(supabaseUrl, supabaseServiceKey, {

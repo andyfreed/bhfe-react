@@ -43,4 +43,10 @@ export async function uploadFileFromServerWithAuth(
     console.error('Error in uploadFileFromServerWithAuth:', error);
     throw error;
   }
+}
+
+// This file should only be imported in server components and API routes
+export async function createServerSupabaseClient() {
+  const { createClient } = await import('./supabase/server');
+  return createClient();
 } 

@@ -3,7 +3,7 @@
  */
 
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 
 // Mock client disabled – always use live Supabase
 const useMockClient = false;

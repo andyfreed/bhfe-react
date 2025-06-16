@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import type { CourseWithRelations, Exam } from '@/types/database';
 import { CourseType } from '@/types/course';
 import { getCourseExams } from '@/lib/exams';
@@ -108,7 +108,7 @@ function adaptCourse(course: CourseWithRelations): EnhancedCourse {
 // Fetch a course by slug from the database
 async function getCourseBySlug(slug: string): Promise<EnhancedCourse | null> {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // First try to find by sku (converted to slug format)
     const { data, error } = await supabase
