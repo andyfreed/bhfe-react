@@ -9,7 +9,11 @@ export async function GET() {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Check if tables exist
-    const tableResults = {};
+    const tableResults: Record<string, {
+      exists: boolean;
+      error: string | null;
+      sample: any;
+    }> = {};
     
     // Check courses table
     const { data: courses, error: coursesError } = await supabase
