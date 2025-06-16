@@ -29,11 +29,11 @@ async function verifyAdminAuth(request: NextRequest) {
 // GET endpoint to fetch a single enrollment by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Safely resolve params which can be a Promise in Next 15
-    const resolvedParams = params instanceof Promise ? await params : params;
+    // Safely resolve params which is a Promise in Next 15
+    const resolvedParams = await params;
     const id = resolvedParams.id;
     
     const supabase = createServerSupabaseClient();
@@ -80,11 +80,11 @@ export async function GET(
 // PATCH endpoint to update an enrollment
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Safely resolve params which can be a Promise in Next 15
-    const resolvedParams = params instanceof Promise ? await params : params;
+    // Safely resolve params which is a Promise in Next 15
+    const resolvedParams = await params;
     const id = resolvedParams.id;
     
     const supabase = createServerSupabaseClient();
@@ -173,11 +173,11 @@ export async function PATCH(
 // PUT endpoint to update an enrollment
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Safely resolve params which can be a Promise in Next 15
-    const resolvedParams = params instanceof Promise ? await params : params;
+    // Safely resolve params which is a Promise in Next 15
+    const resolvedParams = await params;
     const id = resolvedParams.id;
     
     // Verify admin access
@@ -261,11 +261,11 @@ export async function PUT(
 // DELETE endpoint to remove an enrollment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Safely resolve params which can be a Promise in Next 15
-    const resolvedParams = params instanceof Promise ? await params : params;
+    // Safely resolve params which is a Promise in Next 15
+    const resolvedParams = await params;
     const id = resolvedParams.id;
     
     const supabase = createServerSupabaseClient();
