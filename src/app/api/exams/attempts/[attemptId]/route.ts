@@ -136,21 +136,33 @@ export async function POST(
         if (!answersError && answers && !questionsError && examQuestions) {
           const correctAnswers = answers.filter(a => a.is_correct).length;
           const totalQuestions = examQuestions.length;
+          const answeredQuestions = answers.length;
+          
+          console.log(`Debug: Total questions: ${totalQuestions}, Answered questions: ${answeredQuestions}, Correct answers: ${correctAnswers}`);
           
           if (totalQuestions > 0) {
-            const calculatedScore = Math.round((correctAnswers / totalQuestions) * 100);
-            updateData.score = calculatedScore;
-            
-            // Get exam to check passing score
-            const { data: examData, error: examError } = await supabase
-              .from('exams')
-              .select('passing_score')
-              .eq('id', attemptData.exam_id)
-              .single();
-            
-            if (!examError && examData) {
-              updateData.passed = calculatedScore >= examData.passing_score;
-              console.log(`Score: ${calculatedScore}, Passing score: ${examData.passing_score}, Passed: ${updateData.passed}`);
+            // Only calculate score if all questions have been answered
+            if (answeredQuestions === totalQuestions) {
+              const calculatedScore = Math.round((correctAnswers / totalQuestions) * 100);
+              updateData.score = calculatedScore;
+              
+              // Get exam to check passing score
+              const { data: examData, error: examError } = await supabase
+                .from('exams')
+                .select('passing_score')
+                .eq('id', attemptData.exam_id)
+                .single();
+              
+              if (!examError && examData) {
+                updateData.passed = calculatedScore >= examData.passing_score;
+                console.log(`Score: ${calculatedScore}, Passing score: ${examData.passing_score}, Passed: ${updateData.passed}`);
+              }
+            } else {
+              console.log(`Warning: Not all questions answered (${answeredQuestions}/${totalQuestions}). Cannot calculate final score yet.`);
+              // Set a temporary score based on what's been answered so far, but don't mark as passed
+              const tempScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+              updateData.score = tempScore;
+              updateData.passed = false; // Don't pass until all questions are answered
             }
           }
         }

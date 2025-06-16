@@ -158,55 +158,75 @@ export async function POST(
     const correctOption = questionData.correct_option;
     const isCorrect = selectedOptions.includes(correctOption);
     
-    // Save the answer
-    const { data, error } = await supabase
+    let data, error;
+    
+    // Use a simpler approach: always try INSERT first, then UPDATE on conflict
+    let result = await supabase
       .from('user_exam_answers')
-      .insert([
-        {
-          attempt_id: attemptId,
-          question_id: questionId,
-          selected_option: selectedOptions[0], // Take the first option since it's a single choice
-          is_correct: isCorrect
-        }
-      ])
+      .insert({
+        attempt_id: attemptId,
+        question_id: questionId,
+        selected_option: selectedOptions[0],
+        is_correct: isCorrect
+      })
       .select()
       .single();
     
+    data = result.data;
+    error = result.error;
+    
+    // If insert fails due to duplicate key, try delete and insert instead
+    if (error && error.code === '23505') {
+      console.log('Duplicate key detected, attempting delete and re-insert...');
+      
+      // First delete the existing answer
+      const deleteResult = await supabase
+        .from('user_exam_answers')
+        .delete()
+        .eq('attempt_id', attemptId)
+        .eq('question_id', questionId);
+      
+      if (deleteResult.error) {
+        console.log('Delete failed:', deleteResult.error);
+        error = deleteResult.error;
+      } else {
+        console.log('Delete successful, attempting re-insert...');
+        
+        // Now try to insert again
+        const reinsertResult = await supabase
+          .from('user_exam_answers')
+          .insert({
+            attempt_id: attemptId,
+            question_id: questionId,
+            selected_option: selectedOptions[0],
+            is_correct: isCorrect
+          })
+          .select()
+          .single();
+        
+        if (reinsertResult.data) {
+          data = reinsertResult.data;
+          error = null; // Clear the error since re-insert succeeded
+          console.log('Re-insert successful after duplicate key error');
+        } else {
+          error = reinsertResult.error || error; // Keep original error if re-insert also failed
+          console.log('Re-insert failed:', reinsertResult.error);
+        }
+      }
+    }
+    
     if (error) {
-      console.error('Error saving answer:', error);
+      console.error('Error saving/updating answer:', error);
       console.error('Error details:', {
         code: error.code,
         message: error.message,
         details: error.details,
-        hint: error.hint
+        hint: error.hint,
+        attemptId,
+        questionId,
+        selectedOption: selectedOptions[0],
+        isCorrect
       });
-      
-      // Check if it's a duplicate answer
-      if (error.code === '23505') { // PostgreSQL unique violation code
-        console.log('Attempting to update existing answer...');
-        // Update the existing answer
-        const { data: updatedData, error: updateError } = await supabase
-          .from('user_exam_answers')
-          .update({
-            selected_option: selectedOptions[0],
-            is_correct: isCorrect
-          })
-          .eq('attempt_id', attemptId)
-          .eq('question_id', questionId)
-          .select()
-          .single();
-        
-        if (updateError) {
-          console.error('Error updating answer:', updateError);
-          return NextResponse.json(
-            { error: 'Failed to update answer' },
-            { status: 500 }
-          );
-        }
-        
-        return NextResponse.json(updatedData);
-      }
-      
       return NextResponse.json(
         { error: 'Failed to save answer' },
         { status: 500 }
