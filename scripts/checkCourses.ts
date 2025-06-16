@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from './src/lib/supabase';
+import { createServerSupabaseClient } from './src/lib/supabaseServer';
 
 async function checkCourses() {
   try {

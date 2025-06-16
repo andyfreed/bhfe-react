@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createCourse } from '@/lib/courses';
 // @ts-ignore - xlsx doesn't have TypeScript types by default
 import * as XLSX from 'xlsx';

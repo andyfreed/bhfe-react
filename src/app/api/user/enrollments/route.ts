@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { nanoid } from 'nanoid';
 import { createEnrollment } from '@/lib/supabase/enrollmentUtils';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { isDevelopment } from '@/lib/devUtils';
 import { SupabaseClient } from '@supabase/supabase-js';
 

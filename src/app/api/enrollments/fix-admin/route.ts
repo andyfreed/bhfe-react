@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // This admin user ID should match the one used in development

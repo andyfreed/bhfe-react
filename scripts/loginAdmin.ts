@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from './src/lib/supabase';
+import { createServerSupabaseClient } from './src/lib/supabaseServer';
 import { getCourses } from './src/lib/courses';
 import { cookies } from 'next/headers';
 

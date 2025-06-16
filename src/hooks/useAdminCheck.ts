@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseServer';
 import { isUserAdmin } from '@/lib/auth';
 import { hasAdminCookie, setAdminToken } from '@/lib/clientCookies';
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
 
 // Verify authentication and admin status

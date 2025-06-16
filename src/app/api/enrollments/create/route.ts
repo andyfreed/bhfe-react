@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { createEnrollment, EnrollmentType, EnrollmentStatus } from '@/lib/supabase/enrollmentUtils';
 
 /**

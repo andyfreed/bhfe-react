@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import Link from 'next/link';
 import { setCookie, hasAdminCookie, setAdminToken } from '@/lib/clientCookies';
 

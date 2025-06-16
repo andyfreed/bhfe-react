@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCourseWithRelations, updateCourse, deleteCourse } from '@/lib/courses';
-import { uploadFileFromServer } from '@/lib/supabase';
+import { uploadFileFromServer } from '@/lib/supabaseServer';
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import type { CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 
 // Utility function to check if a URL is accessible

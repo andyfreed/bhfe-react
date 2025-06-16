@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCourseExams, createExam } from '@/lib/exams';
 import { getServerAdminToken, isValidAdminToken } from '@/lib/serverCookies';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 
 // Check if user is enrolled in a course
 async function isUserEnrolled(userId: string, courseId: string): Promise<boolean> {

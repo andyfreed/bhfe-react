@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from './supabase';
+import { createServerSupabaseClient } from './supabaseServer';
 import type { Exam, ExamQuestion, UserExamAttempt, UserExamAnswer } from '../types/database';
 
 // Get all exams for a course

@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from './supabase';
+import { createServerSupabaseClient } from './supabaseServer';
 import type { Course, CourseFormatEntry, CourseCredit, CourseState, CourseWithRelations, Database } from '../types/database';
 
 export async function getCourses(): Promise<Course[]> {

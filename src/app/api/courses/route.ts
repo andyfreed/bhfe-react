@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createCourse, updateCourse, getCourses, deleteCourse, deleteAllCourses } from '@/lib/courses';
 import type { Course, CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 import { cookies } from 'next/headers';
-import { createServerSupabaseClient, uploadFileFromServer } from '@/lib/supabase';
+import { createServerSupabaseClient, uploadFileFromServer } from '@/lib/supabaseServer';
 
 // Valid course formats from the enum
 const VALID_FORMATS: CourseFormat[] = ['online', 'hardcopy', 'video'];
