@@ -4,9 +4,17 @@ import { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '@/config/stripe';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(STRIPE_SECRET_KEY);
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
 export async function POST(req: NextRequest) {
+  // Return early if Stripe is not configured
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Stripe webhook processing is not configured' },
+      { status: 503 }
+    );
+  }
+  
   let event: Stripe.Event;
   const signature = req.headers.get('stripe-signature') as string;
   const body = await req.text();
