@@ -343,13 +343,13 @@ export async function PUT(
 // DELETE user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!(await verifyAdminAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Safely resolve params which can be a Promise in Next 15
-    const resolvedParams = params instanceof Promise ? await params : params;
+    // Await params in Next.js 15
+    const resolvedParams = await params;
     const userId = resolvedParams.id;
 
     const supabase = createAdminSupabase();
