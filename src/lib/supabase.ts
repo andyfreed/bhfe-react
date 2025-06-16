@@ -6,65 +6,18 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
 
-// Live mode only; mock client disabled
-const useMockClient = false;
-
 // Log environment status during development
 if (isDevelopment) {
   logDevEnvironmentStatus();
 }
 
-// Create a mock client for development mode
-function createMockClient() {
-  return {
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-      signInWithPassword: () => Promise.resolve({ data: null, error: null }),
-      signUp: () => Promise.resolve({ data: null, error: null }),
-      signOut: () => Promise.resolve({ error: null }),
-      resetPasswordForEmail: () => Promise.resolve({ data: null, error: null }),
-      updateUser: () => Promise.resolve({ data: { user: null }, error: null }),
-    },
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: () => Promise.resolve({ data: null, error: null }),
-          order: () => ({
-            range: () => Promise.resolve({ data: [], error: null }),
-          }),
-        }),
-        order: () => ({
-          range: () => Promise.resolve({ data: [], error: null }),
-        }),
-      }),
-      insert: () => Promise.resolve({ data: null, error: null }),
-      update: () => ({
-        eq: () => Promise.resolve({ data: null, error: null }),
-      }),
-      delete: () => ({
-        eq: () => Promise.resolve({ data: null, error: null }),
-      }),
-    }),
-    storage: {
-      from: () => ({
-        upload: () => Promise.resolve({ data: { path: 'mock-path' }, error: null }),
-        getPublicUrl: () => ({ data: { publicUrl: 'https://mock-storage-url.com/mock-image.jpg' } }),
-      }),
-    },
-  };
-}
 
-// Create the Supabase client
-export const supabase = useMockClient 
-  ? createMockClient() 
-  : createClient(supabaseUrl, supabaseKey);
+
+// Create the Supabase client - always use real Supabase
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // For server-side operations
 export function createServerSupabaseClient() {
-  if (useMockClient) {
-    return createMockClient();
-  }
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       persistSession: false,
@@ -75,17 +28,6 @@ export function createServerSupabaseClient() {
 // Upload a file to Supabase Storage
 export async function uploadFile(file: File, bucket: string, path: string = '') {
   try {
-    if (useMockClient) {
-      console.log('🔧 MOCK: File upload simulation for', { file: file.name, bucket, path });
-      return {
-        data: {
-          path: 'mock-path',
-          publicUrl: `https://mock-storage-url.com/${path || ''}${file.name}`,
-        },
-        error: null,
-      };
-    }
-
     const filePath = path ? `${path}/${file.name}` : file.name;
     const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
       upsert: true,
@@ -124,17 +66,6 @@ export async function uploadFileFromServer(
   path: string = ''
 ) {
   try {
-    if (useMockClient) {
-      console.log('🔧 MOCK: Server file upload simulation for', { fileName, bucket, path });
-      return {
-        data: {
-          path: 'mock-path',
-          publicUrl: `https://mock-storage-url.com/${path || ''}${fileName}`,
-        },
-        error: null,
-      };
-    }
-
     console.log(`Uploading file to Supabase Storage: ${bucket}/${path ? `${path}/` : ''}${fileName}`);
     
     const client = createServerSupabaseClient();

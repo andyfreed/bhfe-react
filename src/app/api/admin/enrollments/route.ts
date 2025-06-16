@@ -36,30 +36,14 @@ export async function GET(request: NextRequest) {
     
     const supabase = createServerSupabaseClient();
     
-    // First, check if the user_enrollments table exists
-    const { data: tableExists, error: tableCheckError } = await supabase
-      .from('user_enrollments')
-      .select('id')
-      .limit(1);
-      
-    if (tableCheckError) {
-      console.error('Table check error:', tableCheckError);
-      return NextResponse.json({
-        error: 'Failed to access user_enrollments table',
-        details: tableCheckError,
-        enrollments: [],
-        pagination: { page, limit, total: 0, pages: 0 }
-      }, { status: 500 });
-    }
-    
-    // Now fetch the enrollments with proper error handling
+    // Fetch the enrollments with proper error handling
     let query = supabase
       .from('user_enrollments')
       .select(`
         *,
         user:user_id (id, email),
         course:course_id (id, title, main_subject, description)
-      `, { count: 'exact' });
+      `, { count: 'exact' }) as any;
     
     if (userId) {
       query = query.eq('user_id', userId);
