@@ -10,9 +10,9 @@ import { sanitizeText } from '@/utils/text';
 import CourseFormatSelector from './CourseFormatSelector';
 
 interface Props {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // Add image property to the course data
@@ -159,8 +159,10 @@ async function getCourseBySlug(slug: string): Promise<EnhancedCourse | null> {
 }
 
 export default async function CoursePage({ params }: Props) {
+  // Await params in Next.js 15
+  const awaitedParams = await params;
   // Extract slug from params and make sure it's a string
-  const slug = params?.slug || '';
+  const slug = awaitedParams?.slug || '';
   
   // Get the course from the database
   const course = await getCourseBySlug(slug);

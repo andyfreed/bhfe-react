@@ -5,12 +5,12 @@ import { getExamWithQuestions } from '@/lib/exams';
 import ExamTaker from '@/components/exams/ExamTaker';
 
 interface Props {
-  params: {
+  params: Promise<{
     slug: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     examId?: string;
-  };
+  }>;
 }
 
 export default async function CourseExamPage({ params, searchParams }: Props) {
