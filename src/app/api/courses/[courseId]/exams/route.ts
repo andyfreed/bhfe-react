@@ -60,11 +60,11 @@ async function verifyAuth() {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { courseId: string } | Promise<{ courseId: string }> }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    // Await the params if it's a Promise
-    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    // Await the params which is a Promise in Next.js 15
+    const resolvedParams = await params;
     const courseId = resolvedParams.courseId;
     
     if (!courseId) {
@@ -128,14 +128,14 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { courseId: string } | Promise<{ courseId: string }> }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
     // Check admin access
     await verifyAuth();
     
-    // Await the params if it's a Promise
-    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    // Await the params which is a Promise in Next.js 15
+    const resolvedParams = await params;
     const courseId = resolvedParams.courseId;
     
     if (!courseId) {
