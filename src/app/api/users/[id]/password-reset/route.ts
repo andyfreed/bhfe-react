@@ -26,7 +26,7 @@ async function verifyAdminAuth() {
 // POST: Send password reset email
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const isAdmin = await verifyAdminAuth();
@@ -37,7 +37,7 @@ export async function POST(
       );
     }
     
-    const userId = params.id;
+    const { id } = await params;
     
     // Initialize Supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -53,7 +53,7 @@ export async function POST(
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Get the user to get their email address
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(id);
     
     if (userError) {
       return NextResponse.json(

@@ -11,7 +11,7 @@ const IS_DEV = process.env.NODE_ENV === 'development';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { attemptId: string } }
+  { params }: { params: Promise<{ attemptId: string }> }
 ) {
   try {
     // Await params in Next.js 15
@@ -63,7 +63,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { attemptId: string } }
+  { params }: { params: Promise<{ attemptId: string }> }
 ) {
   try {
     // Await params in Next.js 15

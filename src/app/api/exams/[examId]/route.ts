@@ -19,11 +19,11 @@ async function verifyAuth() {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { examId: string } | Promise<{ examId: string }> }
+  { params }: { params: Promise<{ examId: string }> }
 ) {
   try {
-    // Await the params if it's a Promise
-    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    // Await the params which is a Promise in Next.js 15
+    const resolvedParams = await params;
     const examId = resolvedParams.examId;
     
     if (!examId) {
@@ -54,13 +54,13 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { examId: string } | Promise<{ examId: string }> }
+  { params }: { params: Promise<{ examId: string }> }
 ) {
   try {
     await verifyAuth();
     
-    // Await the params if it's a Promise
-    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    // Await the params which is a Promise in Next.js 15
+    const resolvedParams = await params;
     const examId = resolvedParams.examId;
     
     const body = await req.json();
@@ -105,13 +105,13 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { examId: string } | Promise<{ examId: string }> }
+  { params }: { params: Promise<{ examId: string }> }
 ) {
   try {
     await verifyAuth();
     
-    // Await the params if it's a Promise
-    const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+    // Await the params which is a Promise in Next.js 15
+    const resolvedParams = await params;
     const examId = resolvedParams.examId;
     
     await deleteExam(examId);

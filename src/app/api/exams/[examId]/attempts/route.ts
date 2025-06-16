@@ -10,7 +10,7 @@ const DEV_USER_ID = '9e5d47c8-e363-4444-a55e-97f1f0420633';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  { params }: { params: Promise<{ examId: string }> }
 ) {
   try {
     // Await params in Next.js 15
@@ -60,7 +60,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  { params }: { params: Promise<{ examId: string }> }
 ) {
   try {
     // Await params in Next.js 15

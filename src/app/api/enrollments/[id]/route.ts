@@ -22,15 +22,15 @@ async function verifyAuth() {
 // GET: Retrieve an enrollment by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify the user is authenticated as an admin
     await verifyAuth();
     
-    const enrollmentId = params.id;
+    const { id } = await params;
     
-    if (!enrollmentId) {
+    if (!id) {
       return NextResponse.json(
         { error: 'Enrollment ID is required' },
         { status: 400 }
@@ -44,7 +44,7 @@ export async function GET(
     const { data, error } = await supabase
       .from('user_enrollments')
       .select('*, user:users(*), course:courses(*)')
-      .eq('id', enrollmentId)
+      .eq('id', id)
       .single();
     
     if (error) {
@@ -84,15 +84,15 @@ export async function GET(
 // PUT: Update an enrollment by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify the user is authenticated as an admin
     await verifyAuth();
     
-    const enrollmentId = params.id;
+    const { id } = await params;
     
-    if (!enrollmentId) {
+    if (!id) {
       return NextResponse.json(
         { error: 'Enrollment ID is required' },
         { status: 400 }
@@ -142,7 +142,7 @@ export async function PUT(
     const { error } = await supabase
       .from('user_enrollments')
       .update(updateObject)
-      .eq('id', enrollmentId);
+      .eq('id', id);
     
     if (error) {
       console.error('Error updating enrollment:', error);
@@ -156,7 +156,7 @@ export async function PUT(
     const { data: updatedData, error: fetchError } = await supabase
       .from('user_enrollments')
       .select('*, user:users(*), course:courses(*)')
-      .eq('id', enrollmentId)
+      .eq('id', id)
       .single();
     
     if (fetchError) {
@@ -189,15 +189,15 @@ export async function PUT(
 // DELETE: Remove an enrollment by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify the user is authenticated as an admin
     await verifyAuth();
     
-    const enrollmentId = params.id;
+    const { id } = await params;
     
-    if (!enrollmentId) {
+    if (!id) {
       return NextResponse.json(
         { error: 'Enrollment ID is required' },
         { status: 400 }
@@ -211,7 +211,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('user_enrollments')
       .delete()
-      .eq('id', enrollmentId);
+      .eq('id', id);
     
     if (error) {
       console.error('Error deleting enrollment:', error);
