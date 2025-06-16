@@ -5,10 +5,18 @@ import { getCourseWithRelations } from '@/lib/courses';
 import type { CourseWithRelations } from '@/types/database';
 
 // Create Stripe instance with latest API version
-const stripe = new Stripe(STRIPE_SECRET_KEY);
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
 export async function POST(request: Request) {
   try {
+    // Return early if Stripe is not configured
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Payment processing is not configured' },
+        { status: 503 }
+      );
+    }
+    
     const { courseId, format, price } = await request.json();
     
     // Fetch the course from the database with all relations
