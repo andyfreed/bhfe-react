@@ -94,7 +94,7 @@ async function verifyAuth(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  context: { params: { courseId: string } }
+  context: { params: Promise<{ courseId: string }> }
 ) {
   try {
     // Await params in Next.js 15
@@ -224,12 +224,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { courseId: string } }
+  context: { params: Promise<{ courseId: string }> }
 ) {
   try {
     await verifyAuth(request);
-    // Access the courseId directly from the params object
-    const courseId = context.params.courseId;
+    // Await params in Next.js 15
+    const { courseId } = await context.params;
     
     if (!courseId) {
       return NextResponse.json(
@@ -408,12 +408,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { courseId: string } }
+  context: { params: Promise<{ courseId: string }> }
 ) {
   try {
     await verifyAuth(request);
-    // Access the courseId directly from the params object
-    const courseId = context.params.courseId;
+    // Await params in Next.js 15
+    const { courseId } = await context.params;
     
     if (!courseId) {
       return NextResponse.json(
