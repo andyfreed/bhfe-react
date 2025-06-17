@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -14,18 +14,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Initialize Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    // Use the auth-helpers client to get/set cookies
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Sign in with Supabase
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -40,14 +30,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Initialize admin Supabase client to check user role
-    const adminSupabase = createClient(
-      supabaseUrl,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-    );
-    
     // Check if user is admin
-    const { data: profile, error: profileError } = await adminSupabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
@@ -72,8 +56,7 @@ export async function POST(request: NextRequest) {
       path: '/'
     });
     
-    // Also set the Supabase auth cookies are handled automatically by Supabase client
-    
+    // The session cookie is set by the auth-helpers client automatically
     return NextResponse.json({
       success: true,
       user: {
