@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, SupabaseClient, PostgrestResponse } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { headers } from 'next/headers';
 import { cookies } from 'next/headers';
 
@@ -61,53 +61,14 @@ interface UserQueryParams {
   createdBefore?: string;
 }
 
-// Verify admin authorization
-async function verifyAuth(supabase: SupabaseClient) {
-  // Check for admin token cookie first
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get('admin_token');
-  const adminVerified = cookieStore.get('admin-verified');
-  
-  // In production, check for admin-verified cookie
-  if (process.env.NODE_ENV === 'production' && adminVerified?.value === 'true') {
-    console.log('Admin verified cookie found (production)');
-    return true;
-  }
-  
-  if ((adminToken?.value === 'super-secure-admin-token-for-development' || 
-       adminToken?.value === 'temporary-token') && 
-      process.env.NODE_ENV === 'development') {
-    console.log('Admin token cookie found (development)');
-    return true;
-  }
-
-  // Allow everything in development
-  if (process.env.NODE_ENV === 'development') {
-    return true;
-  }
-
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session?.user) {
-      return false;
-    }
-
-    const userId = data.session.user.id;
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-
-    if (profileError || !profile) {
-      return false;
-    }
-
-    return profile.role === 'admin';
-  } catch (error) {
-    console.error('Auth error:', error);
-    return false;
-  }
+// Replace verifyAuth to use createRouteHandlerClient
+async function verifyAuth() {
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return false;
+  const userId = session.user.id;
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+  return profile?.role === 'admin';
 }
 
 // Parse query parameters from request URL
@@ -132,33 +93,8 @@ export async function GET(request: NextRequest) {
   const headersList = headers();
   
   try {
-    // Initialize Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    
-    // Check if environment variables are set
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing Supabase credentials:', { 
-        urlExists: !!supabaseUrl, 
-        keyExists: !!supabaseKey 
-      });
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
-    
-    console.log('Creating Supabase client with URL:', supabaseUrl.substring(0, 10) + '...');
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Verify admin access
-    console.log('Verifying admin access...');
-    const isAdmin = await verifyAuth(supabase).catch(error => {
-      console.error('Auth verification error:', error);
-      return false;
-    });
-    
-    console.log('Admin access result:', isAdmin);
+    const supabase = createRouteHandlerClient({ cookies });
+    const isAdmin = await verifyAuth();
     if (!isAdmin) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -331,35 +267,16 @@ export async function GET(request: NextRequest) {
 // POST: Create a new user
 export async function POST(request: NextRequest) {
   try {
-    console.log('Creating new user...');
-    
-    // Initialize Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    
-    // Check if environment variables are set
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing Supabase credentials');
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Verify admin access
-    const isAdmin = await verifyAuth(supabase).catch(error => {
-      console.error('Auth verification error:', error);
-      return false;
-    });
-    
+    const supabase = createRouteHandlerClient({ cookies });
+    const isAdmin = await verifyAuth();
     if (!isAdmin) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+    
+    console.log('Creating new user...');
     
     // Parse request body
     const body = await request.json();
