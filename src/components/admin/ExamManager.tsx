@@ -403,7 +403,98 @@ export default function ExamManager({ courseId }: ExamManagerProps) {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3">
+            {/* Questions Section */}
+            <div className="mt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-semibold">Questions</h4>
+                <Button onClick={addQuestion} size="sm">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Question
+                </Button>
+              </div>
+
+              {examQuestions.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 bg-gray-50 rounded">
+                  No questions added yet. Click "Add Question" to get started.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {examQuestions.map((question, index) => (
+                    <Card key={question.id} className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <Label>Question {index + 1}</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeQuestion(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <Textarea
+                          placeholder="Enter the question"
+                          value={question.question_text}
+                          onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
+                          rows={2}
+                        />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <Label>Option A</Label>
+                            <Input
+                              placeholder="Option A"
+                              value={question.option_a}
+                              onChange={(e) => updateQuestion(index, 'option_a', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Option B</Label>
+                            <Input
+                              placeholder="Option B"
+                              value={question.option_b}
+                              onChange={(e) => updateQuestion(index, 'option_b', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Option C</Label>
+                            <Input
+                              placeholder="Option C"
+                              value={question.option_c}
+                              onChange={(e) => updateQuestion(index, 'option_c', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Option D</Label>
+                            <Input
+                              placeholder="Option D"
+                              value={question.option_d}
+                              onChange={(e) => updateQuestion(index, 'option_d', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label>Correct Answer</Label>
+                          <Select
+                            value={question.correct_option}
+                            onChange={(e) => updateQuestion(index, 'correct_option', e.target.value)}
+                          >
+                            <option value="a">Option A</option>
+                            <option value="b">Option B</option>
+                            <option value="c">Option C</option>
+                            <option value="d">Option D</option>
+                          </Select>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
               <Button variant="outline" onClick={cancelEdit}>
                 Cancel
               </Button>
