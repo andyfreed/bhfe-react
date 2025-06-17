@@ -50,11 +50,24 @@ export default function ExamTaker({ examId }: ExamTakerProps) {
   const questionsPerPage = 10;
   const totalPages = Math.ceil(questions.length / questionsPerPage);
   
+  // Validate exam ID format
+  const isValidUUID = (id: string) => {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidPattern.test(id);
+  };
+  
   // Load or create an exam attempt
   useEffect(() => {
     async function loadExam() {
       try {
         setLoading(true);
+        
+        // Validate exam ID before proceeding
+        if (!isValidUUID(examId)) {
+          setError(`Invalid exam ID format: ${examId}. Please contact support if this issue persists.`);
+          setLoading(false);
+          return;
+        }
         
         // First, check if there are any existing attempts
         const attemptsResponse = await fetch(`/api/exams/${examId}/attempts`, {
