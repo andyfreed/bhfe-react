@@ -50,6 +50,16 @@ async function verifyAuth() {
   }
 
   try {
+    // Check for admin-verified cookie (production auth)
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const adminVerified = cookieStore.get('admin-verified');
+    
+    if (adminVerified?.value === 'true') {
+      return true;
+    }
+    
+    // Fall back to checking admin token
     const token = await getServerAdminToken();
     return isValidAdminToken(token);
   } catch (error) {
@@ -131,12 +141,19 @@ export async function POST(
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    // Check admin access
-    await verifyAuth();
-    
     // Await the params which is a Promise in Next.js 15
     const resolvedParams = await params;
     const courseId = resolvedParams.courseId;
+    
+    // Check admin access
+    const isAdmin = await verifyAuth();
+    if (!isAdmin) {
+      console.error('Admin verification failed for exam creation');
+      return NextResponse.json(
+        { error: 'Admin authentication required' },
+        { status: 401 }
+      );
+    }
     
     if (!courseId) {
       return NextResponse.json(
