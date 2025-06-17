@@ -214,17 +214,6 @@ const Header = () => {
                   )}
                 </li>
               )}
-              
-              {!isLoggedIn && !isInAdmin && (
-                <li>
-                  <Link 
-                    href="/login?redirect=/admin" 
-                    className="text-gray-500 hover:text-gray-700 text-sm"
-                  >
-                    Admin
-                  </Link>
-                </li>
-              )}
             </ul>
           </nav>
         </div>

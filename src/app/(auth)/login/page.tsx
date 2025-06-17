@@ -44,7 +44,7 @@ function LoginForm() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const rememberMe = formData.get('remember-me') === 'on';
-    const redirectTo = searchParams.get('redirect') || '/dashboard';
+    const redirectTo = searchParams.get('redirect');
 
     // Basic client-side validation
     if (!email || !email.includes('@')) {
@@ -67,7 +67,27 @@ function LoginForm() {
         setError(result.error.message || 'An error occurred during login');
       } else {
         setSuccess('Login successful! Redirecting...');
-        router.push(redirectTo);
+        
+        // Check if user is admin by fetching their profile
+        try {
+          const { getUser } = await import('@/lib/authService');
+          const userResult = await getUser();
+          const userProfile = (userResult.data as any)?.profile;
+          
+          // If explicit redirect is provided, use it
+          if (redirectTo) {
+            router.push(redirectTo);
+          } else if (userProfile?.role === 'admin') {
+            // Admin users go to admin dashboard
+            router.push('/admin');
+          } else {
+            // Regular users go to user dashboard
+            router.push('/dashboard');
+          }
+        } catch {
+          // If we can't check the role, use default redirect
+          router.push(redirectTo || '/dashboard');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
