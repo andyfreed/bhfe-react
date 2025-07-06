@@ -1,8 +1,8 @@
-import { createServerSupabaseClient } from './src/lib/supabaseServer';
+import { createServerSupabaseClient } from '../src/lib/supabaseServer';
 
 async function checkCourses() {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     console.log('Checking courses table...');
     const { data, error } = await supabase

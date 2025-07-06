@@ -1,12 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { headers } from 'next/headers';
 import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Define types for the data we're working with
 interface UserProfile {
+  id: string;
+  email: string;
+  role: string;
   first_name?: string;
   last_name?: string;
+  created_at: string;
+  updated_at: string;
   full_name?: string; // Keep for backwards compatibility
   company?: string;
   phone?: string;
@@ -380,4 +385,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
+
+ 

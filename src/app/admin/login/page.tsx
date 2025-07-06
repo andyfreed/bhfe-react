@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -166,6 +167,12 @@ export default function AdminLoginPage() {
             {loading ? 'Logging in...' : 'Login'}
           </Button>
         </form>
+        <p className="text-sm text-gray-600">
+          Don&apos;t have admin access?{' '}
+          <Link href="/contact" className="font-medium text-indigo-600 hover:text-indigo-500">
+            Contact support
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -1,58 +1,84 @@
 'use client';
 
-import { useState } from 'react';
-import { setAdminToken } from '@/lib/clientCookies';
+import React, { useState } from 'react';
+import Link from 'next/link';
 
-export default function AdminLoginPage() {
-  const [success, setSuccess] = useState(false);
+export default function AdminLogin() {
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
     try {
-      // Set the admin token client-side
-      document.cookie = "admin_token=temporary-token; path=/; max-age=86400; samesite=lax";
-      setSuccess(true);
-      setError('');
-    } catch (err) {
-      console.error('Error setting admin token:', err);
-      setError('Failed to set admin token');
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      if (response.ok) {
+        window.location.href = '/admin';
+      } else {
+        setError('Invalid password');
+      }
+    } catch (error) {
+      setError('An error occurred');
     }
   };
 
   return (
-    <div className="container mx-auto max-w-md py-12">
-      <h1 className="text-2xl font-bold mb-6">Admin Access</h1>
-      
-      <div className="bg-white shadow-md rounded p-6">
-        {success ? (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            Admin token set successfully! You now have admin access.
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Admin Access
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Enter admin password to continue
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="password" className="sr-only">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Admin password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
-        ) : (
-          <>
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
-              </div>
-            )}
-            <p className="mb-4">Click the button below to gain admin access:</p>
+
+          {error && (
+            <div className="text-red-600 text-sm text-center">
+              {error}
+            </div>
+          )}
+
+          <div>
             <button
-              onClick={handleLogin}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
+              type="submit"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Set Admin Token
+              Access Admin
             </button>
-          </>
-        )}
-        
-        {success && (
-          <a 
-            href="/"
-            className="block mt-4 text-center text-blue-600 hover:underline"
-          >
-            Return to Home
-          </a>
-        )}
+          </div>
+
+          <div className="text-center">
+            <Link href="/" className="font-medium text-indigo-600 hover:text-indigo-500">
+              Back to homepage
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   );

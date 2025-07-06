@@ -43,7 +43,6 @@ function LoginForm() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
-    const rememberMe = formData.get('remember-me') === 'on';
     const redirectTo = searchParams.get('redirect');
 
     // Basic client-side validation
@@ -212,7 +211,7 @@ function LoginForm() {
           </div>
           
           <div className="text-center text-sm">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link 
               href="/register" 
               className="font-medium text-indigo-600 hover:text-indigo-500"
