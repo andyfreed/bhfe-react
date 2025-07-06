@@ -1,6 +1,54 @@
 export type CourseFormat = 'online' | 'hardcopy' | 'video';
 export type CreditType = 'CPA' | 'CFP' | 'CDFA' | 'EA' | 'OTRP' | 'EA/OTRP' | 'ERPA';
 
+// Certificate related types
+export interface CertificateTemplate {
+  id: string;
+  name: string;
+  credit_type: string;
+  template_design: string; // JSON containing template design/layout
+  title: string;
+  description: string | null;
+  signature_fields: string; // JSON array of signature field configurations
+  custom_fields: string; // JSON array of custom field configurations
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Certificate {
+  id: string;
+  user_id: string;
+  course_id: string;
+  enrollment_id: string;
+  template_id: string;
+  credit_type: string;
+  certificate_number: string;
+  title: string;
+  recipient_name: string;
+  course_title: string;
+  completion_date: string;
+  exam_score: number;
+  credits_earned: number;
+  custom_data: string | null; // JSON containing any custom certificate data
+  is_revoked: boolean;
+  revoked_at: string | null;
+  revoked_by: string | null;
+  revoked_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CertificateEdit {
+  id: string;
+  certificate_id: string;
+  edited_by: string;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  edit_reason: string | null;
+  created_at: string;
+}
+
 // Exam related types
 export interface ExamQuestion {
   id: string;
@@ -185,6 +233,21 @@ export interface Database {
         Row: UserEnrollment;
         Insert: Omit<UserEnrollment, 'id' | 'created_at'>;
         Update: Partial<Omit<UserEnrollment, 'id' | 'created_at'>>;
+      };
+      certificate_templates: {
+        Row: CertificateTemplate;
+        Insert: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      certificates: {
+        Row: Certificate;
+        Insert: Omit<Certificate, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Certificate, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      certificate_edits: {
+        Row: CertificateEdit;
+        Insert: Omit<CertificateEdit, 'id' | 'created_at'>;
+        Update: Partial<Omit<CertificateEdit, 'id' | 'created_at'>>;
       };
     };
   };
