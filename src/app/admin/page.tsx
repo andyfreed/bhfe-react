@@ -3,6 +3,28 @@ import Link from 'next/link';
 export default function AdminDashboard() {
   return (
     <div className="space-y-6">
+      {/* Admin Access Guide */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 className="text-lg font-medium text-blue-900 mb-2">Admin Access Guide</h3>
+        <p className="text-blue-700 mb-4">
+          To access the admin section in the future, use one of these methods:
+        </p>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-start">
+            <span className="font-medium text-blue-800 mr-2">Development:</span>
+            <span className="text-blue-700">Go to <code className="bg-blue-100 px-1 rounded">/admin/login</code> and use token: <code className="bg-blue-100 px-1 rounded">super-secure-admin-token-for-development</code></span>
+          </div>
+          <div className="flex items-start">
+            <span className="font-medium text-blue-800 mr-2">Production:</span>
+            <span className="text-blue-700">Go to <code className="bg-blue-100 px-1 rounded">/admin/login</code> and use email: <code className="bg-blue-100 px-1 rounded">a.freed@outlook.com</code> with your password</span>
+          </div>
+          <div className="flex items-start">
+            <span className="font-medium text-blue-800 mr-2">Alternative:</span>
+            <span className="text-blue-700">If logged in as admin user, go to <code className="bg-blue-100 px-1 rounded">/admin-access</code> to set admin session</span>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
         <div className="md:grid md:grid-cols-3 md:gap-6">
           <div className="md:col-span-1">
