@@ -30,6 +30,12 @@ export default function InquiriesPage() {
   const [status, setStatus] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   
+  const handleInquiryClick = useCallback((inquiry: ContactInquiry) => {
+    setSelectedInquiry(inquiry);
+    setNotes(inquiry.notes || '');
+    setStatus(inquiry.status);
+  }, []);
+
   const fetchInquiries = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -72,12 +78,6 @@ export default function InquiriesPage() {
   const filteredInquiries = statusFilter === 'all' 
     ? inquiries 
     : inquiries.filter(inquiry => inquiry.status === statusFilter);
-  
-  const handleInquiryClick = useCallback((inquiry: ContactInquiry) => {
-    setSelectedInquiry(inquiry);
-    setNotes(inquiry.notes || '');
-    setStatus(inquiry.status);
-  }, []);
   
   const handleStatusChange = (newStatus: string) => {
     setStatusFilter(newStatus);

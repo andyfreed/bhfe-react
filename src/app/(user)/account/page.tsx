@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/authService';
+import type { User } from '@supabase/supabase-js';
 
 // Define tab sections
 type TabSection = 'overview' | 'courses' | 'certificates' | 'orders' | 'settings';
@@ -88,12 +89,19 @@ export default function AccountPage() {
         setError('Please log in to view your courses');
         return;
       }
+
+      const typedUser = user as User;
+      if (!typedUser.email) {
+        console.error('User has no email address');
+        setError('User account is missing email address');
+        return;
+      }
       
-      console.log('Fetching enrollments for user:', user.email);
+      console.log('Fetching enrollments for user:', typedUser.email);
       
       // Try the new simplified enrollment endpoint first
       try {
-        const newResponse = await fetch(`/api/user/my-enrollments?email=${encodeURIComponent(user.email)}&t=${Date.now()}`, {
+        const newResponse = await fetch(`/api/user/my-enrollments?email=${encodeURIComponent(typedUser.email)}&t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
@@ -124,7 +132,7 @@ export default function AccountPage() {
       console.log('Falling back to original enrollment endpoint');
       
       // Fetch user enrollments from the API with cache busting
-      const response = await fetch(`/api/user/enrollments?t=${Date.now()}&include_course_details=true&debug_email=${encodeURIComponent(user.email)}`, {
+      const response = await fetch(`/api/user/enrollments?t=${Date.now()}&include_course_details=true&debug_email=${encodeURIComponent(typedUser.email)}`, {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -151,7 +159,7 @@ export default function AccountPage() {
           // Try directly fixing enrollments
           console.log('Attempting to fix enrollments...');
           try {
-            const fixResponse = await fetch(`/api/debug/fix-enrollments?email=${encodeURIComponent(user.email)}`);
+            const fixResponse = await fetch(`/api/debug/fix-enrollments?email=${encodeURIComponent(typedUser.email)}`);
             if (fixResponse.ok) {
               const fixResult = await fixResponse.json();
               console.log('Fix enrollments result:', fixResult);
@@ -338,9 +346,10 @@ export default function AccountPage() {
           router.push('/auth/login');
           return;
         }
-        
-        setUserEmail(user.email || '');
-        setUserName(user.user_metadata?.full_name || 'Student');
+
+        const typedUser = user as User;
+        setUserEmail(typedUser.email || '');
+        setUserName(typedUser.user_metadata?.full_name || 'Student');
         
         // Fetch enrollment data
         await fetchUserEnrollments();

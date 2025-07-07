@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getUser } from '@/lib/authService';
+import type { User } from '@supabase/supabase-js';
 
 interface Course {
   id: string;
@@ -66,8 +67,15 @@ export default function CourseContentPage() {
           return;
         }
 
+        const typedUser = user as User;
+        if (!typedUser.email) {
+          console.error('User has no email address');
+          router.push('/auth/login');
+          return;
+        }
+
         // First check if the user is enrolled in this course
-        const enrollmentCheckUrl = `/api/user/enrollments/check?courseId=${courseId}&email=${encodeURIComponent(user.email)}`;
+        const enrollmentCheckUrl = `/api/user/enrollments/check?courseId=${courseId}&email=${encodeURIComponent(typedUser.email)}`;
         console.log('Checking enrollment with URL:', enrollmentCheckUrl);
         
         const enrollmentCheckResponse = await fetch(enrollmentCheckUrl, {

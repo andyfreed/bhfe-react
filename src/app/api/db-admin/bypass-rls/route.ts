@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getSession } from '@/lib/authService';
+import type { User } from '@supabase/supabase-js';
 
 // This is a backend-only endpoint that will create a database function
 // to bypass RLS policies for course creation
 export async function POST(req: NextRequest) {
   // Check authentication
   const session = await getSession();
-  if (!session || session.data === null || !session.data?.user || !session.data?.user.email) {
+  if (!session || session.data === null) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  const user = session.data as User;
+  if (!user || !user.email) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
   
   // Only allow admin users to create the function
-  const isAdmin = session.data.user.app_metadata?.claims_admin === true;
+  const isAdmin = user.app_metadata?.claims_admin === true;
   if (!isAdmin) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }

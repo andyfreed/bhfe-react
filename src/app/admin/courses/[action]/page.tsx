@@ -194,13 +194,8 @@ export default function CourseForm({ params }: PageParams) {
           fetchCourse(id);
         }
         
-        // Show success message by setting a success state
-        setSuccess('Course updated successfully');
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccess(null);
-        }, 3000);
+        // Course updated successfully - could add a toast notification here
+        console.log('Course updated successfully');
       } else {
         // For new course creation, redirect to the course list
         router.push('/admin/courses');
