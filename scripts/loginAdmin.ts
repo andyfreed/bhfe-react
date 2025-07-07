@@ -1,28 +1,28 @@
-import { createServerSupabaseClient } from './src/lib/supabaseServer';
-import { getCourses } from './src/lib/courses';
-import { cookies } from 'next/headers';
+import { createServerSupabaseClient } from '../src/lib/supabaseServer';
+import { getCourses } from '../src/lib/courses';
 
-async function loginAndCheckCourses() {
+async function loginAdmin() {
+  const supabase = await createServerSupabaseClient();
+  
   try {
-    // Get courses directly from the database
-    const courses = await getCourses();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: 'admin@example.com',
+      password: 'admin123'
+    });
     
-    console.log(`Total courses in database: ${courses?.length || 0}`);
-    
-    if (courses && courses.length > 0) {
-      console.log('\nSample courses:');
-      courses.slice(0, 3).forEach((course, index) => {
-        console.log(`Course ${index + 1}:`, {
-          id: course.id,
-          sku: course.sku,
-          title: course.title,
-          author: course.author
-        });
-      });
+    if (error) {
+      console.error('Login error:', error);
+      return;
     }
+    
+    console.log('Login successful:', data);
+    
+    // Test fetching courses
+    const courses = await getCourses();
+    console.log('Courses:', courses);
   } catch (error) {
     console.error('Error:', error);
   }
 }
 
-loginAndCheckCourses(); 
+loginAdmin(); 
