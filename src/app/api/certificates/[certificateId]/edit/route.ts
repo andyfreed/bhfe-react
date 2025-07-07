@@ -3,10 +3,10 @@ import { editCertificate } from '@/lib/certificates';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { certificateId: string } }
+  { params }: { params: Promise<{ certificateId: string }> }
 ) {
   try {
-    const { certificateId } = params;
+    const { certificateId } = await params;
     const { editedBy, fieldName, newValue, oldValue, editReason } = await request.json();
 
     if (!certificateId || !editedBy || !fieldName || newValue === undefined) {
