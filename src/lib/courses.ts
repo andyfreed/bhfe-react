@@ -29,7 +29,7 @@ export async function getCourseBySlug(slug: string): Promise<Course | null> {
     if (!idError && idData) {
       return idData;
     }
-  } catch (err) {
+  } catch {
     // Ignore error, proceed to SKU lookup
     console.log('Course not found by ID, trying SKU lookup');
   }

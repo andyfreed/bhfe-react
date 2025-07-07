@@ -10,5 +10,6 @@
     "@next/next/no-html-link-for-pages": "warn",
     "prefer-const": "warn",
     "@typescript-eslint/ban-ts-comment": "warn"
-  }
+  },
+  "ignorePatterns": ["src/scripts/**/*", "src/db/**/*"]
 } 

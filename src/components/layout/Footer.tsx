@@ -20,7 +20,7 @@ const Footer = () => {
                   className="mt-1"
                 />
                 <span>
-                  CFP®, CERTIFIED FINANCIAL PLANNER® are certification marks owned by the Certified Financial Planner Board of Standards, Inc. These marks are awarded to individuals who successfully complete CFP® Board's initial and ongoing certification requirements.
+                  CFP®, CERTIFIED FINANCIAL PLANNER® are certification marks owned by the Certified Financial Planner Board of Standards, Inc. These marks are awarded to individuals who successfully complete CFP® Board&apos;s initial and ongoing certification requirements.
                 </span>
               </p>
               <p className="flex items-start space-x-4 mt-4">

@@ -106,11 +106,11 @@ export async function createEnrollment(
       enrollmentId: data.id,
       isNew: true
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Exception in createEnrollment:', error);
     return {
       success: false,
-      error: error.message || 'An unknown error occurred',
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
       isNew: false
     };
   }
@@ -165,11 +165,11 @@ export async function updateEnrollmentProgress(
       progress,
       completed
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Exception in updateEnrollmentProgress:', error);
     return {
       success: false,
-      error: error.message || 'An unknown error occurred'
+      error: error instanceof Error ? error.message : 'An unknown error occurred'
     };
   }
 } 

@@ -71,7 +71,7 @@ function LoginForm() {
         try {
           const { getUser } = await import('@/lib/authService');
           const userResult = await getUser();
-          const userProfile = (userResult.data as any)?.profile;
+          const userProfile = (userResult.data as { profile?: { role?: string } })?.profile;
           
           // If explicit redirect is provided, use it
           if (redirectTo) {
@@ -88,7 +88,7 @@ function LoginForm() {
           router.push(redirectTo || '/dashboard');
         }
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);

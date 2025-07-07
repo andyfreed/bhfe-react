@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "npx next build --no-lint",
+    "build": "npx next build",
     "start": "npx next start",
     "lint": "npx next lint",
     "setup-db": "node src/scripts/setup-db.js",

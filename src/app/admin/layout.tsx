@@ -93,7 +93,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     };
 
     checkAuth();
-  }, [pathname]);
+  }, [pathname, router]);
 
   // Don't render anything until we've checked authentication
   if (!mounted || isAuthenticated === null) {

@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import UserProfileForm from '@/components/admin/UserProfileForm';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 // Define interfaces to match UserProfileForm
@@ -86,23 +84,16 @@ export default function AdminUserDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false);
-  const [isChangingRole, setIsChangingRole] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingEnrollment, setIsEditingEnrollment] = useState<string | null>(null);
   const [editProgress, setEditProgress] = useState<number>(0);
-  const [editCompleted, setEditCompleted] = useState<boolean>(false);
   const [editCompletedDate, setEditCompletedDate] = useState<string | null>('');
   const [editEnrollmentNotes, setEditEnrollmentNotes] = useState<string>('');
   const [isUpdatingEnrollment, setIsUpdatingEnrollment] = useState(false);
   const [unhandledError, setUnhandledError] = useState<Error | null>(null);
-  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isAddingCourse, setIsAddingCourse] = useState(false);
-  const [completionDate, setCompletionDate] = useState<string>('');
   const [examResults, setExamResults] = useState<number | null>(null);
-  const [isSavingEnrollment, setIsSavingEnrollment] = useState(false);
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(true);
   const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<string | null>(null);
 
@@ -465,7 +456,6 @@ export default function AdminUserDetailPage() {
       return;
     }
     
-    setIsChangingRole(true);
     setErrorMessage(null);
     
     try {
@@ -504,7 +494,7 @@ export default function AdminUserDetailPage() {
       console.error('Error updating user role:', error);
       setErrorMessage((error as Error).message || 'Failed to update user role');
     } finally {
-      setIsChangingRole(false);
+      // Role change completed
     }
   };
 
@@ -607,9 +597,7 @@ export default function AdminUserDetailPage() {
         };
       });
       
-      // Clear both editing states to prevent dialogs from showing
-      setIsEditing(false);
-      setIsManageDialogOpen(false);
+      // Clear editing states to prevent dialogs from showing
       setSuccessMessage('User profile updated successfully!');
       
       // Schedule a delayed refetch to get the latest data from the server
@@ -683,7 +671,6 @@ export default function AdminUserDetailPage() {
   const handleEditEnrollment = (enrollment: Enrollment) => {
     setIsEditingEnrollment(enrollment.id);
     setEditProgress(enrollment.progress);
-    setEditCompleted(enrollment.completed);
     setEditCompletedDate(enrollment.completed_at ? enrollment.completed_at.split('T')[0] : null);
     setEditEnrollmentNotes(enrollment.enrollment_notes || '');
   };
@@ -745,13 +732,6 @@ export default function AdminUserDetailPage() {
     } finally {
       setIsUpdatingEnrollment(false);
     }
-  };
-
-  // Function to handle managing a user (opening the edit dialog)
-  const handleManageUser = (user: User) => {
-    console.log('Opening manage dialog for user:', user);
-    setSelectedUser(user);
-    setIsManageDialogOpen(true);
   };
 
   return (

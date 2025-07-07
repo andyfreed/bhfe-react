@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 
@@ -30,7 +30,7 @@ export default function InquiriesPage() {
   const [status, setStatus] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   
-  const fetchInquiries = async () => {
+  const fetchInquiries = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/admin/inquiries');
@@ -54,11 +54,11 @@ export default function InquiriesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [statusFilter, handleInquiryClick]);
   
   useEffect(() => {
     fetchInquiries();
-  }, []);
+  }, [fetchInquiries]);
   
   // Update the URL when the status filter changes
   useEffect(() => {
@@ -73,11 +73,11 @@ export default function InquiriesPage() {
     ? inquiries 
     : inquiries.filter(inquiry => inquiry.status === statusFilter);
   
-  const handleInquiryClick = (inquiry: ContactInquiry) => {
+  const handleInquiryClick = useCallback((inquiry: ContactInquiry) => {
     setSelectedInquiry(inquiry);
     setNotes(inquiry.notes || '');
     setStatus(inquiry.status);
-  };
+  }, []);
   
   const handleStatusChange = (newStatus: string) => {
     setStatusFilter(newStatus);

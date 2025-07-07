@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Session } from '@supabase/supabase-js';
+import { User, AuthError as SupabaseAuthError } from '@supabase/supabase-js';
 import { isDevelopment } from './devUtils';
 
 // Always use real Supabase auth
@@ -41,7 +41,7 @@ export interface AuthError {
   status?: number;
 }
 
-export interface AuthResult<T = any> {
+export interface AuthResult<T = unknown> {
   data: T | null;
   error: AuthError | null;
 }
@@ -150,13 +150,13 @@ export async function login(email: string, password: string): Promise<AuthResult
     }
 
     return { data, error };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login failed:', error);
     return {
       data: null,
       error: {
-        message: error.message || 'Authentication failed',
-        status: error.status || 500,
+        message: error instanceof Error ? error.message : 'Authentication failed',
+        status: (error as SupabaseAuthError)?.status || 500,
       },
     };
   }
@@ -242,7 +242,7 @@ export async function logout(): Promise<AuthResult> {
     }
 
     return { data: true, error: null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Logout failed:', error);
     
     // Even if the API call fails, clear local storage and redirect
@@ -254,8 +254,8 @@ export async function logout(): Promise<AuthResult> {
     return {
       data: null,
       error: {
-        message: error.message || 'Logout failed',
-        status: error.status || 500,
+        message: error instanceof Error ? error.message : 'Logout failed',
+        status: (error as SupabaseAuthError)?.status || 500,
       },
     };
   }
@@ -293,13 +293,13 @@ export async function getSession(): Promise<AuthResult> {
       data: data.session,
       error: null 
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get session failed:', error);
     return { 
       data: null, 
       error: {
-        message: error.message || 'An unexpected error occurred',
-        status: error.status || 500
+        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        status: (error as SupabaseAuthError)?.status || 500
       }
     };
   }
@@ -360,7 +360,7 @@ export async function getUser(): Promise<AuthResult> {
       } else if (profile) {
         console.log(`User profile found - Role: ${profile.role || 'not set'}`);
         // Attach profile data to user for convenience
-        (user as any).profile = profile;
+        (user as User & { profile?: { id: string; role?: string; full_name?: string; first_name?: string; last_name?: string } }).profile = profile;
       } else {
         console.warn(`User ${user.id} has no profile record`);
       }
@@ -372,12 +372,12 @@ export async function getUser(): Promise<AuthResult> {
       data: user,
       error: null,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in getUser:', error);
     return {
       data: null,
       error: {
-        message: error.message || 'Failed to get user',
+        message: error instanceof Error ? error.message : 'Failed to get user',
         status: 500,
       },
     };
@@ -405,13 +405,13 @@ export async function resetPassword(email: string): Promise<AuthResult> {
     }
 
     return { data, error };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Password reset failed:', error);
     return {
       data: null,
       error: {
-        message: error.message || 'Password reset failed',
-        status: error.status || 500,
+        message: error instanceof Error ? error.message : 'Password reset failed',
+        status: (error as SupabaseAuthError)?.status || 500,
       },
     };
   }

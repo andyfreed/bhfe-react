@@ -154,7 +154,7 @@ export default function AdminLoginPage() {
                 placeholder="Enter your admin token"
               />
               <p className="mt-1 text-xs text-gray-500">
-                In development mode, use: 'super-secure-admin-token-for-development'
+                In development mode, use: &apos;super-secure-admin-token-for-development&apos;
               </p>
             </div>
           )}

@@ -1,8 +1,6 @@
 import React from 'react';
 
-interface AlertDescriptionProps extends React.HTMLAttributes<HTMLDivElement> {}
-
-const AlertDescription = React.forwardRef<HTMLDivElement, AlertDescriptionProps>(
+const AlertDescription = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className = '', children, ...props }, ref) => {
     return (
       <div

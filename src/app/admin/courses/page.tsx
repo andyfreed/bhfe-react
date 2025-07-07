@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import type { Course, CourseWithRelations } from '@/types/database';
+import type { CourseWithRelations } from '@/types/database';
 
 type ColumnConfig = {
   id: string;
@@ -176,7 +176,7 @@ export default function CoursesPage() {
             if (errorData && errorData.error) {
               errorMessage = errorData.error;
             }
-          } catch (parseError) {
+          } catch {
             // If we can't parse the error, just use the status text
             errorMessage = `Failed to fetch courses: ${response.statusText}`;
           }

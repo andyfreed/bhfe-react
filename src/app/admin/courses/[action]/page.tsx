@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Course, CourseFormatEntry, CourseCredit, CourseState, CourseFormat } from '@/types/database';
 import ExamManager from '@/components/admin/ExamManager';
 import { Input } from '@/components/ui/input';
@@ -55,7 +55,6 @@ export default function CourseForm({ params }: PageParams) {
   }>(initialCourseState);
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const { action } = use(params);
-  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (action === 'edit') {
@@ -280,15 +279,6 @@ export default function CourseForm({ params }: PageParams) {
     setCourse(prev => ({
       ...prev,
       states: [...prev.states, { state_code: '' }]
-    }));
-  };
-
-  const updateState = (index: number, value: string) => {
-    setCourse(prev => ({
-      ...prev,
-      states: prev.states.map((state, i) => 
-        i === index ? { state_code: value } : state
-      )
     }));
   };
 

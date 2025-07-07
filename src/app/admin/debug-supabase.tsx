@@ -5,7 +5,12 @@ import { supabase } from '@/lib/supabase';
 import { isDevelopment, isMockAuthEnabled, hasValidSupabaseCredentials } from '@/lib/devUtils';
 
 export default function DebugSupabase() {
-  const [dbResponse, setDbResponse] = useState<any>(null);
+  const [dbResponse, setDbResponse] = useState<{
+    success: boolean;
+    count?: number;
+    message?: string;
+    error?: unknown;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,15 +31,15 @@ export default function DebugSupabase() {
           
           setDbResponse({
             success: true,
-            count: 'count' in result ? result.count : 0,
+            count: 'count' in result ? result.count ?? 0 : 0,
             message: 'Connection successful'
           });
         } catch (queryError) {
           throw queryError;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Supabase test error:', err);
-        setError(err.message || 'An error occurred testing Supabase connection');
+        setError(err instanceof Error ? err.message : 'An error occurred testing Supabase connection');
         setDbResponse({
           success: false,
           error: err
@@ -117,7 +122,7 @@ export default function DebugSupabase() {
               <div className="font-medium">Connection failed:</div>
               <div className="text-sm mt-1">{error}</div>
               <div className="mt-2 text-sm text-gray-600">
-                This indicates either an issue with your Supabase credentials or that you're in mock mode.
+                This indicates either an issue with your Supabase credentials or that you&apos;re in mock mode.
               </div>
             </div>
           ) : (

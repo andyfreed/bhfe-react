@@ -1,8 +1,6 @@
 import React from 'react';
 
-interface RadioGroupItemProps extends React.InputHTMLAttributes<HTMLInputElement> {}
-
-const RadioGroupItem = React.forwardRef<HTMLInputElement, RadioGroupItemProps>(
+const RadioGroupItem = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className = '', id, ...props }, ref) => {
     return (
       <input

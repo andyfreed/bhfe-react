@@ -12,7 +12,7 @@ export default function ImportPage() {
         <h2 className="text-xl font-semibold mb-2">Import Courses from XLSX</h2>
         <p className="mb-4">
           Upload an Excel file to import multiple courses at once. Make sure your XLSX has the required headers: 
-          title, sku, description, main_subject, author, etc. <strong>Important: Use 2-letter state codes</strong> (e.g., "CA", "NY") 
+          title, sku, description, main_subject, author, etc. <strong>Important: Use 2-letter state codes</strong> (e.g., &quot;CA&quot;, &quot;NY&quot;) 
           for States and separate multiple states with a pipe (|) character.
           <a 
             href="/api/admin/import/courses/sample" 

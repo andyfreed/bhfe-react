@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { getSession, logout } from '@/lib/authService';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 
@@ -17,7 +17,6 @@ const Header = () => {
   const userMenuButtonRef = useRef<HTMLButtonElement>(null);
   const userMenuDropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const router = useRouter();
   const isInAdmin = pathname?.startsWith('/admin');
 
   const checkAuth = async () => {

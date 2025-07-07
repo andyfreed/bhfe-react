@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { setCookie, hasAdminCookie, setAdminToken } from '@/lib/clientCookies';
+import { setCookie, hasAdminCookie } from '@/lib/clientCookies';
 
 interface User {
   id: string;
@@ -44,48 +43,6 @@ export default function AdminEnrollmentsPage() {
   const [usingMockData, setUsingMockData] = useState(false);
   const [isDev, setIsDev] = useState(false);
 
-  // Mock data to use if database connection fails
-  const mockUsers: User[] = [
-    { id: 'mock-user-1', email: 'student1@example.com' },
-    { id: 'mock-user-2', email: 'student2@example.com' },
-    { id: 'mock-user-3', email: 'instructor@example.com' },
-  ];
-
-  const mockCourses: Course[] = [
-    { id: 'mock-course-1', title: 'Introduction to Accounting', main_subject: 'Accounting' },
-    { id: 'mock-course-2', title: 'Tax Preparation Basics', main_subject: 'Tax' },
-    { id: 'mock-course-3', title: 'Advanced Financial Planning', main_subject: 'Finance' },
-  ];
-
-  const mockEnrollments: Enrollment[] = [
-    {
-      id: 'mock-enrollment-1',
-      user_id: 'mock-user-1',
-      course_id: 'mock-course-1',
-      progress: 35,
-      completed: false,
-      enrolled_at: new Date().toISOString(),
-      enrollment_type: 'paid',
-      exam_score: null,
-      exam_passed: null,
-      user: mockUsers[0],
-      course: mockCourses[0],
-    },
-    {
-      id: 'mock-enrollment-2',
-      user_id: 'mock-user-2',
-      course_id: 'mock-course-2',
-      progress: 100,
-      completed: true,
-      enrolled_at: new Date().toISOString(),
-      enrollment_type: 'admin',
-      enrollment_notes: 'Complimentary enrollment',
-      exam_score: 85,
-      exam_passed: true,
-      user: mockUsers[1],
-      course: mockCourses[1],
-    },
-  ];
 
   useEffect(() => {
     // Check if we're in development mode
@@ -105,6 +62,49 @@ export default function AdminEnrollmentsPage() {
   }, []);
 
   useEffect(() => {
+    // Mock data to use if database connection fails
+    const mockUsers: User[] = [
+      { id: 'mock-user-1', email: 'student1@example.com' },
+      { id: 'mock-user-2', email: 'student2@example.com' },
+      { id: 'mock-user-3', email: 'instructor@example.com' },
+    ];
+
+    const mockCourses: Course[] = [
+      { id: 'mock-course-1', title: 'Introduction to Accounting', main_subject: 'Accounting' },
+      { id: 'mock-course-2', title: 'Tax Preparation Basics', main_subject: 'Tax' },
+      { id: 'mock-course-3', title: 'Advanced Financial Planning', main_subject: 'Finance' },
+    ];
+
+    const mockEnrollments: Enrollment[] = [
+      {
+        id: 'mock-enrollment-1',
+        user_id: 'mock-user-1',
+        course_id: 'mock-course-1',
+        progress: 35,
+        completed: false,
+        enrolled_at: new Date().toISOString(),
+        enrollment_type: 'paid',
+        exam_score: null,
+        exam_passed: null,
+        user: mockUsers[0],
+        course: mockCourses[0],
+      },
+      {
+        id: 'mock-enrollment-2',
+        user_id: 'mock-user-2',
+        course_id: 'mock-course-2',
+        progress: 100,
+        completed: true,
+        enrolled_at: new Date().toISOString(),
+        enrollment_type: 'admin',
+        enrollment_notes: 'Complimentary enrollment',
+        exam_score: 85,
+        exam_passed: true,
+        user: mockUsers[1],
+        course: mockCourses[1],
+      },
+    ];
+
     async function fetchData() {
       setIsLoading(true);
       try {
@@ -318,12 +318,13 @@ export default function AdminEnrollmentsPage() {
         console.warn('No data returned after enrollment creation');
         setSuccessMessage('Enrollment created. Please refresh to see changes.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating enrollment:', error);
-      if (error.message?.includes('violates unique constraint') || error.message?.includes('duplicate key')) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create enrollment';
+      if (errorMessage.includes('violates unique constraint') || errorMessage.includes('duplicate key')) {
         setErrorMessage('This user is already enrolled in this course.');
       } else {
-        setErrorMessage(error.message || 'Failed to create enrollment');
+        setErrorMessage(errorMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -376,9 +377,9 @@ export default function AdminEnrollmentsPage() {
       console.log('Successfully deleted enrollment');
       setEnrollments(enrollments.filter(e => e.id !== enrollmentId));
       setSuccessMessage('Enrollment deleted successfully!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting enrollment:', error);
-      setErrorMessage(error.message || 'Failed to delete enrollment');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete enrollment');
     }
   };
 
@@ -406,7 +407,7 @@ export default function AdminEnrollmentsPage() {
           <p className="mt-1">
             {isDev ? (
               <>
-                <strong>Development environment:</strong> Using demonstration data because the required database tables don't exist yet.
+                <strong>Development environment:</strong> Using demonstration data because the required database tables don&apos;t exist yet.
                 <br />
                 <span className="text-sm mt-1 block">
                   To fix this, create the <code className="bg-yellow-50 px-1 py-0.5 rounded">users</code> and <code className="bg-yellow-50 px-1 py-0.5 rounded">enrollments</code> tables in your Supabase database.

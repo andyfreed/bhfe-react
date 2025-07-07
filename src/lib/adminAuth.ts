@@ -55,15 +55,15 @@ export async function getUserId(): Promise<string | null> {
  * Safely handles a mock response or a real Supabase response
  * This helps overcome TypeScript errors with our mock Supabase implementation
  */
-export function safeResponse<T>(response: any): { data: T | null; error: any | null } {
+export function safeResponse<T>(response: unknown): { data: T | null; error: unknown | null } {
   if (!response) {
     return { data: null, error: new Error('No response received') };
   }
   
   // Handle mock responses
   if (useMockClient) {
-    if (response.data !== undefined) {
-      return response; // It's already in the right format
+    if (typeof response === 'object' && response !== null && 'data' in response) {
+      return response as { data: T | null; error: unknown | null };
     }
     
     // For other responses that might be promises in mock mode
@@ -71,5 +71,5 @@ export function safeResponse<T>(response: any): { data: T | null; error: any | n
   }
   
   // Handle normal Supabase responses
-  return response;
+  return response as { data: T | null; error: unknown | null };
 } 

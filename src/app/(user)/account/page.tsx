@@ -536,7 +536,7 @@ export default function AccountPage() {
                 </div>
               ) : enrollments.length === 0 ? (
                 <div className="bg-gray-50 rounded-lg p-8 text-center">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">You haven't enrolled in any courses yet</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">You haven&apos;t enrolled in any courses yet</h3>
                   <p className="text-gray-600 mb-4">Browse our catalog to find courses that match your interests</p>
                   <Link
                     href="/courses"
